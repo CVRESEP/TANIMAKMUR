@@ -68,7 +68,13 @@ function deletePenebusan(doRef) {
 }
 
 function openAddPenebusanModal() {
-    const products = STATE.products;
+    let products = STATE.products;
+    const user = STATE.currentUser;
+    
+    // Filter by branch if user is not OWNER/ADMIN (ALL branch)
+    if (user.branch !== 'ALL') {
+        products = products.filter(p => p.branch === user.branch);
+    }
     const content = `
         <form onsubmit="savePenebusan(event)" id="form-penebusan">
             <div class="form-group">
@@ -81,9 +87,9 @@ function openAddPenebusanModal() {
             </div>
             <div class="form-group">
                 <label>Pilih Produk</label>
-                <select name="product_name" id="penebusan-product" onchange="calculatePenebusanTotal()" required>
+                <select name="product_code" id="penebusan-product" onchange="calculatePenebusanTotal()" required>
                     <option value="" disabled selected>Pilih Produk...</option>
-                    ${products.map(p => `<option value="${p.name}">${p.name} (${formatCurrency(p.buyPrice || p.price)}/${p.unit})</option>`).join('')}
+                    ${products.map(p => `<option value="${p.code}">${p.name} [${p.branch}] (${formatCurrency(p.buyPrice || p.price)}/${p.unit})</option>`).join('')}
                 </select>
             </div>
             ${renderBranchSelector('kabupaten', '', 'Pilih Wilayah (Kabupaten)')}
@@ -104,18 +110,18 @@ function openAddPenebusanModal() {
 }
 
 function calculatePenebusanTotal() {
-    const productName = document.getElementById('penebusan-product').value;
+    const productCode = document.getElementById('penebusan-product').value;
     const qtyInput = document.getElementById('penebusan-qty');
     const qty = parseFloat(qtyInput.value) || 0;
     const display = document.getElementById('penebusan-total-display');
     const valueEl = document.getElementById('penebusan-total-value');
 
-    if (!productName || qty <= 0) {
+    if (!productCode || qty <= 0) {
         if (display) display.style.display = 'none';
         return;
     }
 
-    const product = STATE.products.find(p => p.name === productName);
+    const product = STATE.products.find(p => p.code === productCode);
     if (product) {
         // Corrected: Total is Qty (Ton) * Price (per Ton)
         // Previous error: * 1000 made it 1000x larger (Billion instead of Million)
@@ -128,17 +134,18 @@ function calculatePenebusanTotal() {
 function savePenebusan(e) {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const productName = fd.get('product_name');
-    const product = STATE.products.find(p => p.name === productName);
+    const productCode = fd.get('product_code');
+    const product = STATE.products.find(p => p.code === productCode);
     const qty = parseFloat(fd.get('qty'));
 
     const newPenebusan = {
         do: fd.get('do').toUpperCase(),
         date: fd.get('date'),
-        product: productName,
+        product: product.name,
+        productCode: product.code,
         kabupaten: fd.get('kabupaten'),
         qty: qty,
-        total: qty * product.price // Corrected formula
+        total: qty * (product.buyPrice || product.price) 
     };
 
     if (STATE.penebusan.find(p => p.do === newPenebusan.do)) {
