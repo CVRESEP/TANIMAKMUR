@@ -11,6 +11,7 @@ function renderOrdersKiosk() {
         const statusClass = 
             o.status === 'MENUNGGU PERSETUJUAN' ? 'waiting' :
             o.status === 'LUNAS' ? 'lunas' :
+            o.status === 'DITOLAK' ? 'rejected' :
             o.status === 'MENUNGGU KONFIRMASI PEMBAYARAN' || o.status === 'MENUNGGU PEMBAYARAN' ? 'process' :
             o.status.toLowerCase().replace(/ /g, '-');
 
@@ -23,13 +24,24 @@ function renderOrdersKiosk() {
                 <td>${formatCurrency(o.price)}</td>
                 <td>${o.qty} Ton</td>
                 <td><strong>${formatCurrency(o.total)}</strong></td>
-                <td><span class="status-text ${statusClass}">${o.status}</span></td>
                 <td>
-                    ${o.status === 'MENUNGGU PEMBAYARAN' ? `
-                        <button class="action-btn small primary" onclick="openUploadProof('${o.id}')">
-                            <i data-lucide="upload"></i> Bayar
-                        </button>
-                    ` : '-'}
+                    <span class="status-text ${statusClass}">${o.status}</span>
+                    ${o.rejectReason ? `<div style="font-size: 0.65rem; color: #ef4444; font-weight: 600; margin-top: 4px;">ALASAN: ${o.rejectReason}</div>` : ''}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 5px;">
+                        ${o.status === 'MENUNGGU PEMBAYARAN' ? `
+                            <button class="action-btn small primary" onclick="openUploadProof('${o.id}')">
+                                <i data-lucide="upload"></i> Bayar
+                            </button>
+                        ` : ''}
+                        ${['DITOLAK', 'LUNAS'].includes(o.status) ? `
+                            <button class="action-btn small" onclick="deleteOrder('${o.id}')" title="Hapus dari Riwayat" style="color: #ef4444; border-color: #fecdd3; background: #fff1f2;">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        ` : ''}
+                        ${(!['MENUNGGU PEMBAYARAN', 'DITOLAK', 'LUNAS'].includes(o.status)) ? '-' : ''}
+                    </div>
                 </td>
             </tr>
         `;
@@ -388,11 +400,18 @@ function deleteOrder(id) {
         STATE.kas_angkutan = STATE.kas_angkutan.filter(k => !linkedPylIds.includes(k.noPyl));
         
         saveState();
-        renderApprovals();
-        renderPenyaluran();
-        if (typeof renderKasAngkutan === 'function') renderKasAngkutan();
-        renderDashboard();
-        openSuccessModal('PESANAN DIHAPUS', `Pesanan <strong>${id}</strong> beserta data penyaluran dan biaya angkutannya berhasil dihapus.`);
+        
+        // Refresh appropriate view based on role
+        if (STATE.currentUser.role === 'KIOS') {
+            renderOrdersKiosk();
+        } else {
+            renderApprovals();
+            renderPenyaluran();
+            if (typeof renderKasAngkutan === 'function') renderKasAngkutan();
+        }
+        
+        if (typeof renderDashboard === 'function') renderDashboard();
+        openSuccessModal('PESANAN DIHAPUS', `Pesanan <strong>${id}</strong> berhasil dihapus.`);
     }
 }
 
