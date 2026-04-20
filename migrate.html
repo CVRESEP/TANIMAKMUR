@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tani Makmur — Migrasi Database Lokal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #16a34a;
+      --primary-dark: #15803d;
+      --primary-light: #dcfce7;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #273446;
+      --border: rgba(255,255,255,0.08);
+      --text: #f1f5f9;
+      --text-dim: #94a3b8;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+      --success: #10b981;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 10px;
+    }
+    .logo-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, var(--primary), #4ade80);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; font-weight: 900; color: #fff;
+      box-shadow: 0 8px 24px rgba(22,163,74,0.4);
+    }
+    .logo-title { font-size: 1.6rem; font-weight: 800; }
+    .logo-sub { font-size: 0.8rem; color: var(--primary); font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
+    .subtitle { color: var(--text-dim); margin-bottom: 40px; font-size: 0.95rem; }
+
+    .container { width: 100%; max-width: 860px; }
+
+    /* Status Server Card */
+    .status-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      display: flex; align-items: center; gap: 20px;
+    }
+    .status-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--danger); flex-shrink: 0;
+      box-shadow: 0 0 0 4px rgba(239,68,68,0.2);
+      transition: all 0.3s;
+    }
+    .status-dot.online {
+      background: var(--success);
+      box-shadow: 0 0 0 4px rgba(16,185,129,0.2);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100%{box-shadow:0 0 0 4px rgba(16,185,129,0.2)} 50%{box-shadow:0 0 0 8px rgba(16,185,129,0.05)} }
+    .status-info { flex: 1; }
+    .status-label { font-weight: 700; font-size: 0.95rem; }
+    .status-meta { font-size: 0.8rem; color: var(--text-dim); margin-top: 2px; }
+    .btn-check { padding: 8px 20px; background: var(--card2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+      transition: all 0.2s; }
+    .btn-check:hover { background: var(--primary); border-color: var(--primary); }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 20px; padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .card-icon.green { background: rgba(22,163,74,0.15); }
+    .card-icon.blue  { background: rgba(59,130,246,0.15); }
+    .card-icon.amber { background: rgba(245,158,11,0.15); }
+    .card-title { font-size: 1.05rem; font-weight: 700; }
+    .card-desc  { font-size: 0.82rem; color: var(--text-dim); margin-top: 2px; }
+
+    /* Data Summary Grid */
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .data-item {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+    .data-count {
+      font-size: 1.8rem; font-weight: 800;
+      background: linear-gradient(135deg, #4ade80, #16a34a);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .data-count.zero { background: none; -webkit-text-fill-color: var(--text-dim); }
+    .data-label { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Progress */
+    .progress-wrapper { margin-top: 16px; }
+    .progress-bar-outer { background: var(--card2); border-radius: 999px; height: 10px; overflow: hidden; margin-top: 8px; }
+    .progress-bar-inner { height: 100%; background: linear-gradient(90deg, #16a34a, #4ade80); border-radius: 999px; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+    .progress-text { font-size: 0.8rem; color: var(--text-dim); display: flex; justify-content: space-between; margin-top: 6px; }
+
+    /* Log */
+    .log-box {
+      background: #0a1628;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      max-height: 280px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+    }
+    .log-line { display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .log-time { color: #475569; flex-shrink: 0; }
+    .log-msg  { flex: 1; }
+    .log-ok   { color: #4ade80; }
+    .log-err  { color: #f87171; }
+    .log-info { color: #60a5fa; }
+    .log-warn { color: #fbbf24; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; border-radius: 10px; border: none;
+      font-size: 0.9rem; font-weight: 700; cursor: pointer;
+      transition: all 0.2s; letter-spacing: 0.3px;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #22c55e);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(22,163,74,0.35);
+    }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(22,163,74,0.45); }
+    .btn-secondary {
+      background: var(--card2); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: #334155; }
+    .btn-danger {
+      background: rgba(239,68,68,0.15); color: var(--danger);
+      border: 1px solid rgba(239,68,68,0.3);
+    }
+    .btn-danger:hover:not(:disabled) { background: var(--danger); color: #fff; }
+    .btn-info {
+      background: rgba(59,130,246,0.15); color: #60a5fa;
+      border: 1px solid rgba(59,130,246,0.3);
+    }
+    .btn-info:hover:not(:disabled) { background: var(--info); color: #fff; }
+
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+
+    /* DB counts */
+    .db-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px; margin-top: 16px;
+    }
+    .db-item {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px;
+      text-align: center;
+    }
+    .db-count { font-size: 1.5rem; font-weight: 800; color: #60a5fa; }
+    .db-label { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .alert {
+      border-radius: 10px; padding: 14px 18px;
+      font-size: 0.88rem; margin-top: 16px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .alert-warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #fbbf24; }
+    .alert-info    { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; }
+    .alert-success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #34d399; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+    a.nav-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--primary); font-weight: 600; text-decoration: none;
+      font-size: 0.9rem; padding: 8px 16px; border-radius: 8px;
+      border: 1px solid rgba(22,163,74,0.3);
+      transition: all 0.2s;
+    }
+    a.nav-link:hover { background: rgba(22,163,74,0.1); }
+
+    .step-number {
+      display: inline-flex; width: 26px; height: 26px; border-radius: 50%;
+      align-items: center; justify-content: center;
+      background: var(--primary); color: #fff;
+      font-size: 0.75rem; font-weight: 800; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="logo">
+  <div class="logo-icon">TM</div>
+  <div>
+    <div class="logo-title">Tani Makmur</div>
+    <div class="logo-sub">Database Migration Tool</div>
+  </div>
+</div>
+<p class="subtitle">Migrasikan data dari localStorage browser ke database SQLite lokal PC Anda</p>
+
+<div class="container">
+
+  <!-- ── STATUS SERVER ─────────────────────────────── -->
+  <div class="status-card">
+    <div class="status-dot" id="status-dot"></div>
+    <div class="status-info">
+      <div class="status-label" id="status-label">Memeriksa server...</div>
+      <div class="status-meta" id="status-meta">Menghubungkan ke http://localhost:3737</div>
+    </div>
+    <button class="btn-check" onclick="checkServer()">🔄 Refresh</button>
+  </div>
+
+  <!-- ── LANGKAH 1: DATA DARI BROWSER ─────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon green"><span class="step-number">1</span></div>
+      <div>
+        <div class="card-title">Data Ditemukan di Browser (localStorage)</div>
+        <div class="card-desc">Data yang akan dimigrasi dari browser ke database SQLite di PC</div>
+      </div>
+    </div>
+
+    <div class="data-grid" id="local-data-grid">
+      <div class="data-item"><div class="data-count zero">—</div><div class="data-label">Memuat...</div></div>
+    </div>
+
+    <div class="alert alert-warning" id="no-data-warning" style="display:none">
+      ⚠️ <span>Tidak ada data di localStorage browser ini. Pastikan Anda membuka halaman ini di browser yang sama tempat Anda menggunakan aplikasi Tani Makmur sebelumnya.</span>
+    </div>
+
+    <div class="alert alert-info">
+      💡 <span>Tool ini hanya memindahkan data — data di browser <strong>tidak</strong> akan otomatis dihapus setelah migrasi.</span>
+    </div>
+  </div>
+
+  <!-- ── LANGKAH 2: MIGRASI ────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon blue"><span class="step-number">2</span></div>
+      <div>
+        <div class="card-title">Jalankan Migrasi ke SQLite</div>
+        <div class="card-desc">Data dikirim ke server lokal dan disimpan ke file database di PC Anda</div>
+      </div>
+    </div>
+
+    <div class="progress-wrapper" id="progress-section" style="display:none">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-size:0.85rem; font-weight:600;" id="progress-label">Memproses...</span>
+        <span style="font-size:0.85rem; color: var(--primary); font-weight:700;" id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar-outer">
+        <div class="progress-bar-inner" id="progress-bar" style="width:0%"></div>
+      </div>
+      <div class="progress-text">
+        <span id="progress-detail">Memulai...</span>
+        <span id="progress-count"></span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-migrate" onclick="startMigration()" disabled>
+        🚀 Mulai Migrasi Sekarang
+      </button>
+      <button class="btn btn-secondary" id="btn-reset" onclick="resetMigration()" style="display:none">
+        🔄 Ulangi
+      </button>
+      <button class="btn btn-danger" id="btn-hard-reset" onclick="hardResetDatabase()" style="margin-left: auto;">
+        🗑️ Kosongkan SQLite
+      </button>
+    </div>
+  </div>
+
+  <!-- ── LOG ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon amber"><span class="step-number">3</span></div>
+      <div>
+        <div class="card-title">Log Migrasi</div>
+        <div class="card-desc">Riwayat proses migrasi data secara real-time</div>
+      </div>
+    </div>
+    <div class="log-box" id="log-box">
+      <div class="log-line">
+        <span class="log-time">--:--:--</span>
+        <span class="log-msg log-info">Sistem siap. Menunggu perintah migrasi...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DATABASE SETELAH MIGRASI ──────────────────── -->
+  <div class="card" id="db-status-card" style="display:none">
+    <div class="card-header">
+      <div class="card-icon green" style="background:rgba(16,185,129,0.15)">✅</div>
+      <div>
+        <div class="card-title">Database SQLite Saat Ini</div>
+        <div class="card-desc">Data yang tersimpan di PC Anda (file: data/tanimakmur.db)</div>
+      </div>
+    </div>
+    <div class="db-grid" id="db-counts-grid"></div>
+    
+    <hr class="divider">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+      <div class="alert alert-success" style="margin:0; flex:1">
+        🎉 Migrasi selesai! Sekarang buka dashboard menggunakan server lokal.
+      </div>
+      <a href="/dashboard.html" class="nav-link">🌐 Buka Dashboard →</a>
+    </div>
+  </div>
+
+  <!-- ── PANDUAN ───────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:rgba(148,163,184,0.1)">📋</div>
+      <div>
+        <div class="card-title">Panduan Penggunaan</div>
+        <div class="card-desc">Cara menjalankan aplikasi dengan database lokal PC</div>
+      </div>
+    </div>
+    <ol style="padding-left: 20px; display:flex; flex-direction:column; gap:12px; color: var(--text-dim); font-size:0.88rem; line-height:1.6;">
+      <li><strong style="color:var(--text)">Jalankan server</strong> — Di terminal, ketik: <code style="background:var(--card2); padding:2px 8px; border-radius:5px; color:#60a5fa;">node server.js</code></li>
+      <li><strong style="color:var(--text)">Buka halaman ini</strong> — Akses <code style="background:var(--card2); padding:2px 8px; border-radius:5px; color:#60a5fa;">http://localhost:3737/migrate.html</code> di browser yang sama dengan data lama</li>
+      <li><strong style="color:var(--text)">Klik Mulai Migrasi</strong> — Data dari localStorage akan dikirim ke SQLite di PC</li>
+      <li><strong style="color:var(--text)">Gunakan Dashboard</strong> — Buka <code style="background:var(--card2); padding:2px 8px; border-radius:5px; color:#60a5fa;">http://localhost:3737/dashboard.html</code> untuk akses penuh</li>
+      <li><strong style="color:var(--text)">Database tersimpan</strong> di <code style="background:var(--card2); padding:2px 8px; border-radius:5px; color:#fbbf24;">data/tanimakmur.db</code> — Aman dari hapus cache browser!</li>
+    </ol>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:3737/api';
+const LS_KEY = 'tm_state_v1';
+
+// ── Logging ──────────────────────────────────────────────────────────────────
+function log(msg, type = 'info') {
+  const box = document.getElementById('log-box');
+  const now = new Date().toTimeString().slice(0, 8);
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  div.innerHTML = `<span class="log-time">${now}</span><span class="log-msg log-${type}">${msg}</span>`;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── Server Status ─────────────────────────────────────────────────────────────
+async function checkServer() {
+  const dot  = document.getElementById('status-dot');
+  const lbl  = document.getElementById('status-label');
+  const meta = document.getElementById('status-meta');
+  lbl.textContent = 'Memeriksa...';
+  try {
+    const r = await fetch(`${API}/status`, { signal: AbortSignal.timeout(3000) });
+    const data = await r.json();
+    dot.classList.add('online');
+    lbl.textContent = '✅ Server Aktif — Database Terhubung';
+    meta.textContent = `Database: ${data.dbPath}`;
+    document.getElementById('btn-migrate').disabled = false;
+    showDbCounts(data.counts);
+    log('Server terhubung. Database SQLite siap.', 'ok');
+  } catch {
+    dot.classList.remove('online');
+    lbl.textContent = '❌ Server Offline — Jalankan: node server.js';
+    meta.textContent = 'http://localhost:3737 tidak dapat dijangkau';
+    document.getElementById('btn-migrate').disabled = true;
+    log('Server tidak dapat dijangkau. Jalankan: node server.js', 'err');
+  }
+}
+
+function showDbCounts(counts) {
+  const card = document.getElementById('db-status-card');
+  const grid = document.getElementById('db-counts-grid');
+  const labels = {
+    users: 'Akun Pengguna', products: 'Produk', penebusan: 'Penebusan',
+    pengeluaran: 'Pengeluaran DO', penyaluran: 'Penyaluran', orders: 'Pesanan', drivers: 'Sopir'
+  };
+  grid.innerHTML = Object.entries(counts).map(([k, v]) => `
+    <div class="db-item">
+      <div class="db-count">${v}</div>
+      <div class="db-label">${labels[k] || k}</div>
+    </div>
+  `).join('');
+  card.style.display = 'block';
+}
+
+// ── Load localStorage Data ────────────────────────────────────────────────────
+function getLocalData() {
+  let state = {};
+  try { state = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch {}
+  return {
+    users:       state.users       || [],
+    products:    state.products    || [],
+    penebusan:   state.penebusan   || [],
+    pengeluaran: state.pengeluaran || [],
+    penyaluran:  state.penyaluran  || [],
+    orders:      state.orders      || [],
+    drivers:     state.drivers     || [],
+  };
+}
+
+function renderLocalData() {
+  const data = getLocalData();
+  const labels = {
+    users: 'Akun Pengguna', products: 'Produk', penebusan: 'Penebusan',
+    pengeluaran: 'Pengeluaran DO', penyaluran: 'Penyaluran', orders: 'Pesanan', drivers: 'Sopir'
+  };
+  const grid = document.getElementById('local-data-grid');
+  let total = 0;
+  grid.innerHTML = Object.entries(data).map(([k, v]) => {
+    total += v.length;
+    return `
+      <div class="data-item">
+        <div class="data-count ${v.length === 0 ? 'zero' : ''}">${v.length}</div>
+        <div class="data-label">${labels[k] || k}</div>
+      </div>`;
+  }).join('');
+
+  if (total === 0) {
+    document.getElementById('no-data-warning').style.display = 'flex';
+  }
+}
+
+// ── Migration ─────────────────────────────────────────────────────────────────
+async function startMigration() {
+  const data = getLocalData();
+  const tables = Object.entries(data);
+  const total  = tables.length;
+
+  document.getElementById('btn-migrate').disabled = true;
+  document.getElementById('progress-section').style.display = 'block';
+  log('═══════════════════════════════', 'info');
+  log('Memulai proses migrasi...', 'info');
+
+  let done = 0;
+  for (const [table, rows] of tables) {
+    const pct = Math.round((done / total) * 100);
+    updateProgress(pct, `Migrasi tabel: ${table}`, `${done}/${total}`, done, total);
+    log(`→ Mengirim [${table}]: ${rows.length} baris...`, 'info');
+
+    try {
+      const r = await fetch(`${API}/migrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table, rows })
+      });
+      const result = await r.json();
+      if (result.ok) {
+        log(`✓ [${table}]: ${result.inserted} data berhasil disimpan`, 'ok');
+      } else {
+        log(`✗ [${table}]: ${result.error}`, 'err');
+      }
+    } catch (e) {
+      log(`✗ [${table}]: Koneksi terputus — ${e.message}`, 'err');
+    }
+    done++;
+  }
+
+  updateProgress(100, 'Migrasi selesai!', `${total}/${total}`, total, total);
+  log('═══════════════════════════════', 'ok');
+  log('🎉 Migrasi selesai! Database SQLite diperbarui.', 'ok');
+  document.getElementById('btn-reset').style.display = 'inline-flex';
+
+  // Refresh DB counts
+  try {
+    const r = await fetch(`${API}/status`);
+    const d = await r.json();
+    showDbCounts(d.counts);
+  } catch {}
+}
+
+function updateProgress(pct, label, detail, done, total) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-label').textContent = label;
+  document.getElementById('progress-detail').textContent = detail;
+  document.getElementById('progress-count').textContent = total > 0 ? `${done} / ${total} tabel` : '';
+}
+
+function resetMigration() {
+  document.getElementById('progress-section').style.display = 'none';
+  document.getElementById('btn-migrate').disabled = false;
+  document.getElementById('btn-reset').style.display = 'none';
+  updateProgress(0, '', '', 0, 0);
+  log('─── Reset. Siap untuk migrasi ulang. ───', 'warn');
+}
+
+async function hardResetDatabase() {
+  const confirm1 = confirm("⚠️ PERINGATAN KERAS!\n\nAnda akan MENGHAPUS SEMUA DATA di database SQLite PC ini.\nData produk, transaksi, dan akun (kecuali admin) akan hilang.\n\nApakah Anda yakin?");
+  if (!confirm1) return;
+  
+  const confirm2 = confirm("KONFIRMASI TERAKHIR:\n\nBenar-benar hapus database SQLite?");
+  if (!confirm2) return;
+
+  log('Sedang mengosongkan database SQLite...', 'warn');
+  try {
+    const r = await fetch(`${API}/reset-db`, { method: 'POST' });
+    const result = await r.json();
+    if (result.ok) {
+      log('✅ DATABASE SQLite TELAH DIKOSONGKAN!', 'ok');
+      alert("Database berhasil dikosongkan.");
+      checkServer(); // Refresh counts
+    } else {
+      log('✗ Gagal reset: ' + result.error, 'err');
+    }
+  } catch (e) {
+    log('✗ Kesalahan koneksi: ' + e.message, 'err');
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  renderLocalData();
+  checkServer();
+  setInterval(checkServer, 10000); // Auto-check setiap 10 detik
+});
+</script>
+</body>
+</html>

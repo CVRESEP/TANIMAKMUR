@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tani Makmur - Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon">TM</div>
+            <span class="sidebar-title">TANI MAKMUR</span>
+        </div>
+        <nav class="nav-menu">
+            <ul id="nav-list">
+                <li class="nav-item">
+                    <a href="#dashboard" class="nav-link active" data-page="dashboard">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>DASBOR</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#products" class="nav-link" data-page="products">
+                        <i data-lucide="package"></i>
+                        <span>DAFTAR PRODUK</span>
+                    </a>
+                </li>
+                <li class="nav-item group-label">Operasional</li>
+                <li class="nav-item">
+                    <a href="#penebusan" class="nav-link" data-page="penebusan">
+                        <i data-lucide="shopping-cart"></i>
+                        <span>PENEBUSAN</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#pengeluaran" class="nav-link" data-page="pengeluaran">
+                        <i data-lucide="truck"></i>
+                        <span>PENGELUARAN DO</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#penyaluran" class="nav-link" data-page="penyaluran">
+                        <i data-lucide="send"></i>
+                        <span>PENYALURAN KIOS</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#approvals" class="nav-link" data-page="approvals">
+                        <i data-lucide="clipboard-check"></i>
+                        <span>PERSETUJUAN PESANAN</span>
+                        <div style="display: flex; gap: 4px; margin-left: auto;">
+                            <div id="approval-badge" class="nav-badge" style="display: none;">0</div>
+                            <div id="payment-badge" class="nav-badge blue" style="display: none;">0</div>
+                        </div>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#payments" class="nav-link" data-page="payments">
+                        <i data-lucide="banknote"></i>
+                        <span>PEMBAYARAN</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#kiosks" class="nav-link" data-page="kiosks">
+                        <i data-lucide="store"></i>
+                        <span>DAFTAR KIOS</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#orders_kiosk" class="nav-link" data-page="orders_kiosk">
+                        <i data-lucide="shopping-cart"></i>
+                        <span>PESANAN SAYA</span>
+                    </a>
+                </li>
+                <li class="nav-item group-label">Keuangan</li>
+                <li class="nav-item">
+                    <a href="#kas_angkutan" class="nav-link" data-page="kas_angkutan">
+                        <i data-lucide="truck"></i>
+                        <span>KAS ANGKUTAN</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#kas_umum" class="nav-link" data-page="kas_umum">
+                        <i data-lucide="wallet"></i>
+                        <span>KAS UMUM</span>
+                    </a>
+                </li>
+                <li class="nav-item group-label">Sistem</li>
+                <li class="nav-item">
+                    <a href="#reports" class="nav-link" data-page="reports">
+                        <i data-lucide="file-clock"></i>
+                        <span>LAPORAN</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#users" class="nav-link" data-page="users">
+                        <i data-lucide="users"></i>
+                        <span>KELOLA AKUN</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#settings" class="nav-link" data-page="settings">
+                        <i data-lucide="settings"></i>
+                        <span>PENGATURAN</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <a href="#" class="nav-link" id="logout-btn" style="color: #ef4444;" onclick="logout(event)">
+                <i data-lucide="log-out"></i>
+                <span>KELUAR</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <header class="header">
+            <button id="menu-toggle">
+                <i data-lucide="menu"></i>
+            </button>
+            <h1 class="header-title" id="page-display-title">DASBOR</h1>
+            
+            <div class="header-right" style="display: flex; align-items: center; gap: 20px;">
+                <div id="active-user-info" style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem;">
+                    <i data-lucide="user-circle" style="width: 18px; color: var(--primary);"></i>
+                    <span id="header-user-name" style="font-weight: 600;">Loading...</span>
+                    <span id="header-user-role" class="badge">ROLE</span>
+                </div>
+                <div class="logout-timer" id="session-timer" style="color: var(--text-dim); font-size: 0.8rem;">Sesi berakhir: 05:00</div>
+            </div>
+        </header>
+
+        <main class="content-body" id="content-area">
+            <!-- Dynamic Content Injected Here -->
+        </main>
+    </div>
+
+    <!-- Templates for different sections (Hidden) -->
+    <template id="tpl-dashboard">
+        <div class="stats-grid" id="dashboard-stats-grid">
+            <!-- Stats will be injected here -->
+        </div>
+
+        <div class="card">
+            <h3 class="card-title" id="dashboard-activity-title">Aktivitas Terbaru</h3>
+            <div class="table-container">
+                <table>
+                    <thead id="dashboard-activity-head">
+                        <!-- Table head will be injected here -->
+                    </thead>
+                    <tbody id="recent-activity-body">
+                        <!-- Activity will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-products">
+        <div class="header-actions">
+            <h2 class="page-title">Daftar Produk</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn secondary" onclick="triggerImport('products')">
+                    <i data-lucide="upload"></i> IMPORT
+                </button>
+                <button class="action-btn secondary" onclick="exportToExcel('products')">
+                    <i data-lucide="download"></i> EXPORT
+                </button>
+                <button class="action-btn" onclick="toggleSelectionMode('products')">
+                    <i data-lucide="check-square"></i> PILIH
+                </button>
+                <button class="action-btn primary" onclick="openAddProductModal()">
+                    <i data-lucide="plus"></i> TAMBAH PRODUK
+                </button>
+            </div>
+        </div>
+        <div id="products-selection-actions"></div>
+        <div class="card p-0 overflow-hidden">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Kode</th>
+                            <th>Nama Produk</th>
+                            <th>Harga Beli</th>
+                            <th>Harga Jual</th>
+                            <th>Stok</th>
+                            <th>AKSI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-payments">
+        <h2 class="page-title">Riwayat Pembayaran Kios</h2>
+        <div class="card p-0 overflow-hidden">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>TANGGAL</th>
+                            <th>KIOS</th>
+                            <th>PRODUK</th>
+                            <th>QTY</th>
+                            <th>TOTAL BAYAR</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payments-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-penebusan">
+        <div class="header-actions">
+            <h2 class="page-title">Daftar Penebusan DO Utama</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn secondary" onclick="triggerImport('penebusan')">
+                    <i data-lucide="upload"></i> IMPORT
+                </button>
+                <button class="action-btn secondary" onclick="exportToExcel('penebusan')">
+                    <i data-lucide="download"></i> EXPORT
+                </button>
+                <button class="action-btn" onclick="toggleSelectionMode('penebusan')">
+                    <i data-lucide="check-square"></i> PILIH
+                </button>
+                <button class="action-btn primary" onclick="openAddPenebusanModal()">
+                    <i data-lucide="plus"></i> TAMBAH PENEBUSAN
+                </button>
+            </div>
+        </div>
+        <div id="penebusan-selection-actions"></div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>NO DO</th>
+                        <th>TANGGAL</th>
+                        <th>KABUPATEN</th>
+                        <th>PRODUK</th>
+                        <th>QTY (TON)</th>
+                        <th>TOTAL NILAI</th>
+                        <th>AKSI</th>
+                    </tr>
+                </thead>
+                <tbody id="penebusan-table-body">
+                    <!-- Data injected here -->
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <template id="tpl-pengeluaran">
+        <div class="header-actions">
+            <h2 class="page-title">Riwayat Pengeluaran DO (Gudang Supplier)</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn secondary" onclick="triggerImport('pengeluaran')">
+                    <i data-lucide="upload"></i> IMPORT
+                </button>
+                <button class="action-btn secondary" onclick="exportToExcel('pengeluaran')">
+                    <i data-lucide="download"></i> EXPORT
+                </button>
+                <button class="action-btn" onclick="toggleSelectionMode('pengeluaran')">
+                    <i data-lucide="check-square"></i> PILIH
+                </button>
+                <button class="action-btn primary" onclick="openAddPengeluaranModal()">
+                    <i data-lucide="plus"></i> CATAT PENGELUARAN BARU
+                </button>
+            </div>
+        </div>
+        <div id="pengeluaran-selection-actions"></div>
+        <div id="do-summary-grid" class="stats-grid" style="margin-bottom: 20px;"></div>
+        <div class="card p-0 overflow-hidden">
+            <div class="table-container">
+                <table>
+                <thead>
+                    <tr>
+                        <th>TANGGAL</th>
+                        <th>NO DO</th>
+                        <th>PRODUK</th>
+                        <th>QTY KELUAR</th>
+                        <th>SISA STOK DO</th>
+                        <th>AKSI</th>
+                    </tr>
+                </thead>
+                <tbody id="pengeluaran-table-body">
+                    <!-- Data injected here -->
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <template id="tpl-kas_angkutan">
+        <div class="header-actions">
+            <h2 class="page-title">Buku Kas Angkutan / Sopir</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn" onclick="toggleSelectionMode('kas_angkutan')">
+                    <i data-lucide="check-square"></i> PILIH
+                </button>
+                <button id="btn-approval-kas" class="action-btn" onclick="openFinanceApprovalModal()" style="display: none; background: #10b981; color: white; border-color: #059669;">
+                    <i data-lucide="clipboard-check"></i> PERSETUJUAN DANA
+                </button>
+                <button class="action-btn secondary" onclick="openAddFinanceModal('kas_angkutan_op')">
+                    <i data-lucide="wrench"></i> BIAYA OPERASIONAL
+                </button>
+                <button class="action-btn primary" onclick="openAddFinanceModal('kas_angkutan')">
+                    <i data-lucide="truck"></i> BIAYA ANGKUTAN
+                </button>
+            </div>
+        </div>
+        <div id="kas_angkutan-summary-container"></div>
+        <div id="kas_angkutan-selection-actions"></div>
+        <div class="card p-0 overflow-hidden">
+            <div class="table-container" style="min-height: 400px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">TANGGAL</th>
+                            <th style="width: 150px;">DO / PENYALURAN</th>
+                            <th>DESKRIPSI / SOPIR</th>
+                            <th style="width: 150px; color: var(--primary);">MASUK</th>
+                            <th style="width: 150px; color: var(--danger);">KELUAR</th>
+                            <th style="width: 100px;">WILAYAH</th>
+                            <th style="width: 80px;">AKSI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kas_angkutan-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-kas_umum">
+        <div class="header-actions">
+            <h2 class="page-title">Buku Kas Umum Penjualan</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn" onclick="toggleSelectionMode('kas_umum')">
+                    <i data-lucide="check-square"></i> PILIH
+                </button>
+                <button id="btn-approval-kas-umum" class="action-btn" onclick="openFinanceApprovalModal('kas_umum')" style="display: none; background: #10b981; color: white; border-color: #059669;">
+                    <i data-lucide="clipboard-check"></i> PERSETUJUAN DANA
+                </button>
+                <button class="action-btn primary" onclick="openAddFinanceModal('kas_umum')">
+                    <i data-lucide="plus"></i> CATAT TRANSAKSI
+                </button>
+            </div>
+        </div>
+        <div id="kas_umum-summary-container"></div>
+        <div id="kas_umum-selection-actions"></div>
+        <div class="card p-0 overflow-hidden">
+            <div class="table-container" style="min-height: 400px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 100px;">TANGGAL</th>
+                            <th>KETERANGAN / WILAYAH</th>
+                            <th style="width: 150px; color: var(--primary);">MASUK</th>
+                            <th style="width: 150px; color: var(--danger);">KELUAR</th>
+                            <th style="width: 80px;">AKSI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kas_umum-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-penyaluran">
+        <div class="header-actions">
+            <h2 class="page-title">Monitoring Penyaluran Kios</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn secondary" onclick="triggerImport('penyaluran')">
+                    <i data-lucide="upload"></i> IMPORT
+                </button>
+                <button class="action-btn secondary" onclick="exportToExcel('penyaluran')">
+                    <i data-lucide="download"></i> EXPORT
+                </button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID PYL</th>
+                        <th>KIOS</th>
+                        <th>PRODUK</th>
+                        <th>QTY (TON)</th>
+                        <th>NOMINAL</th>
+                        <th>SOPIR</th>
+                        <th>PLAT</th>
+                        <th>STATUS</th>
+                        <th>PEMBAYARAN</th>
+                        <th>AKSI</th>
+                    </tr>
+                </thead>
+                <tbody id="penyaluran-table-body">
+                    <!-- Data injected here -->
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <template id="tpl-users">
+        <!-- User Management Section -->
+        <div class="header-actions">
+            <h2 class="page-title">Kelola Akun Pengguna</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn secondary" onclick="triggerImport('users')">
+                    <i data-lucide="upload"></i> IMPORT
+                </button>
+                <button class="action-btn secondary" onclick="exportToExcel('users')">
+                    <i data-lucide="download"></i> EXPORT
+                </button>
+                <button class="action-btn" onclick="toggleSelectionMode('users')">
+                    <i data-lucide="check-square"></i> PILIH
+                </button>
+                <button class="action-btn primary" onclick="openAddUserModal()">
+                    <i data-lucide="user-plus"></i> TAMBAH AKUN BARU
+                </button>
+            </div>
+        </div>
+        <div id="users-selection-actions"></div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Nama Lengkap</th>
+                        <th>Role</th>
+                        <th>Cabang</th>
+                        <th>Password</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table-body">
+                    <!-- Data injected here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Driver Management Section -->
+        <div class="header-actions">
+            <h2 class="page-title">Kelola Master Sopir</h2>
+            <button class="action-btn primary" onclick="openAddDriverModal()">
+                <i data-lucide="truck"></i> TAMBAH SOPIR BARU
+            </button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>NAMA SOPIR</th>
+                        <th>PLAT NOMOR</th>
+                        <th>AKSI</th>
+                    </tr>
+                </thead>
+                <tbody id="drivers-table-body">
+                    <!-- Data injected here -->
+                </tbody>
+            </table>
+        </div>
+    </template>
+
+    <template id="tpl-settings">
+        <h2 class="page-title">Pengaturan Akun</h2>
+        <div class="settings-grid">
+            <div class="card">
+                <h3 style="margin-bottom: 20px; font-size: 1.1rem; color: var(--text-main);">Profil Pengguna</h3>
+                <div class="form-group">
+                    <label>Nama Lengkap</label>
+                    <input type="text" value="Administrator TM" placeholder="Administrator TM" class="profile-name-input">
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" value="admin" placeholder="admin" class="profile-username-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <div class="profile-role-badge" style="padding: 10px; background: var(--bg-main); border-radius: 8px; color: var(--primary); font-weight: 600;">SUPER ADMIN</div>
+                </div>
+                <button class="action-btn primary" onclick="alert('Profil berhasil diperbarui!')" style="width: 100%; justify-content: center;">UPDATE PROFIL</button>
+            </div>
+            
+            <div class="card">
+                <h3 style="margin-bottom: 20px; font-size: 1.1rem; color: var(--text-main);">Keamanan</h3>
+                <div class="form-group">
+                    <label>Password Lama</label>
+                    <input type="password" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label>Password Baru</label>
+                    <input type="password" placeholder="Masukkan password baru">
+                </div>
+                <div class="form-group">
+                    <label>Konfirmasi Password</label>
+                    <input type="password" placeholder="Ulangi password baru">
+                </div>
+                <button class="action-btn" style="width: 100%; justify-content: center;">GANTI PASSWORD</button>
+            </div>
+
+        <!-- Maintenance Section (Moved to Bottom) -->
+        <div class="card" style="border: 1px solid #fee2e2; background: #fffbff; margin-top: 30px;">
+            <div style="padding: 20px; border-bottom: 1px solid #fee2e2;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: #ef4444; font-weight: 800;">PUSAT PEMELIHARAAN SISTEM</h3>
+            </div>
+            <div style="padding: 24px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <p style="font-size: 0.85rem; color: var(--text-dim); flex: 1; min-width: 300px;">
+                    Gunakan fitur ini untuk membersihkan seluruh data transaksi dan mengembalikan sistem ke kondisi awal (kosong). 
+                    <br><span style="color: #ef4444; font-weight: 600;">Peringatan: Tindakan ini tidak dapat dibatalkan.</span>
+                </p>
+                <button class="action-btn" onclick="resetData()" style="padding: 12px 24px; background: #ef4444; color: white; border: none; font-weight: 700;">
+                    HAPUS SELURUH DATA SISTEM
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <div class="modal" id="modal-container">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title" style="font-size: 1.25rem; font-weight: 700;">Tambah Data</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Form injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="success-modal">
+        <div class="success-content">
+            <div class="success-icon-wrapper">
+                <i data-lucide="check-circle"></i>
+            </div>
+            <h2 class="success-title">BERHASIL!</h2>
+            <p class="success-message">Data Anda telah berhasil diproses oleh sistem.</p>
+            <button class="success-btn" onclick="closeSuccessModal()">MENGERTI</button>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="success-modal">
+        <div class="success-content">
+            <div class="success-icon-wrapper" style="background: #fef2f2; color: #ef4444;">
+                <i data-lucide="alert-circle"></i>
+            </div>
+            <h2 class="success-title" style="color: #ef4444;">GAGAL!</h2>
+            <p class="success-message">Terjadi kesalahan pada sistem.</p>
+            <button class="success-btn" onclick="closeErrorModal()" style="background: #ef4444;">TUTUP</button>
+        </div>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Modular Scripts -->
+    <script src="js/state.js?v=99"></script>
+    <script src="js/utils.js?v=99"></script>
+    <script src="js/ui.js?v=99"></script>
+    <script src="js/auth.js?v=99"></script>
+    
+    <!-- Module Handlers -->
+    <script src="js/modules/dashboard.js?v=99"></script>
+    <script src="js/modules/products.js?v=99"></script>
+    <script src="js/modules/penebusan.js?v=99"></script>
+    <script src="js/modules/pengeluaran.js?v=99"></script>
+    <script src="js/modules/penyaluran.js?v=99"></script>
+    <script src="js/modules/orders.js?v=99"></script>
+    <script src="js/modules/payments.js?v=99"></script>
+    <script src="js/modules/kiosks.js?v=99"></script>
+    <script src="js/modules/users.js?v=99"></script>
+    <script src="js/modules/settings.js?v=99"></script>
+    <script src="js/modules/reports.js?v=99"></script>
+    <script src="js/modules/finance.js?v=99"></script>
+    
+    <!-- Entry Point -->
+    <script src="js/main.js?v=99"></script>
+    <template id="tpl-orders_kiosk">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 class="card-title" style="margin-bottom: 0;">HALAMAN PEMESANAN KIOS</h2>
+                <button class="action-btn primary" onclick="openAddOrderModal()">
+                    <i data-lucide="plus"></i> BUAT PESANAN BARU
+                </button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No Pesanan</th>
+                            <th>Tanggal</th>
+                            <th>NO Penyaluran</th>
+                            <th>Produk</th>
+                            <th>Harga/Ton</th>
+                            <th>Jumlah</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kiosk-orders-body">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-approvals">
+        <div class="card">
+            <h2 class="card-title" style="margin-bottom: 20px;">PERSETUJUAN PESANAN MASUK</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No Pesanan</th>
+                            <th>Tanggal</th>
+                            <th>Kios</th>
+                            <th>Produk</th>
+                            <th>Jumlah</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="approvals-table-body">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-kiosks">
+        <div class="header-actions">
+            <h2 class="page-title">Direktori Kios Tani Makmur</h2>
+            <div style="display: flex; gap: 10px;">
+                <button class="action-btn secondary" onclick="triggerImport('kiosks_dir')">
+                    <i data-lucide="upload"></i> IMPORT
+                </button>
+                <button class="action-btn secondary" onclick="exportToExcel('kiosks_dir')">
+                    <i data-lucide="download"></i> EXPORT
+                </button>
+                <button class="action-btn" onclick="toggleSelectionMode('kiosks_dir')">
+                    <i data-lucide="check-square"></i> PILIH
+                </button>
+                <button class="action-btn secondary" onclick="printKioskDebts()" style="border-color: #f59e0b; color: #d97706;">
+                    <i data-lucide="printer"></i> LAPORAN PIUTANG
+                </button>
+                <button class="action-btn primary" onclick="openAddKioskModal()">
+                    <i data-lucide="store"></i> TAMBAH KIOS BARU
+                </button>
+            </div>
+        </div>
+        <div id="kiosks_dir-selection-actions"></div>
+        <div class="card p-0 overflow-hidden">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>NAMA KIOS</th>
+                            <th>USERNAME</th>
+                            <th>KABUPATEN</th>
+                            <th>KECAMATAN</th>
+                            <th>DESA</th>
+                            <th>PENANGGUNG JAWAB</th>
+                            <th>NOMOR TELEPON</th>
+                            <th>PASSWORD</th>
+                            <th>AKSI</th>
+                        </tr>
+                    </thead>
+                    <tbody id="kiosks-table-body">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <div id="toast-container" class="toast-container"></div>
+</body>
+</html>

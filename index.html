@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tani Makmur - Login</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="background-container">
+        <img src="background.png" id="background-image" alt="Background Tani Makmur">
+        <div class="overlay"></div>
+    </div>
+
+    <!-- Login Container -->
+    <div class="login-container" id="login-form">
+        <div class="logo-section">
+            <h1 class="logo">Tani Makmur</h1>
+            <p class="subtitle">Solusi Pertanian Masa Depan</p>
+        </div>
+
+        <form id="auth-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-wrapper">
+                    <input type="text" id="username" placeholder="Masukkan username" required autocomplete="username">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-wrapper">
+                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+                </div>
+            </div>
+
+            <button type="submit" class="login-btn" id="login-button">Masuk ke Sistem</button>
+        </form>
+
+        <div class="footer-links">
+            <a href="#">Lupa Password?</a>
+            <a href="#">Bantuan</a>
+        </div>
+    </div>
+
+    <script src="js/state.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
