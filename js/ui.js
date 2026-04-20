@@ -26,16 +26,26 @@ function setupRouting() {
 function setupMobileNav() {
     const menuToggle = document.getElementById('menu-toggle');
     const sidebar = document.getElementById('sidebar');
+    const mainWrapper = document.querySelector('.main-wrapper');
     
     if (menuToggle && sidebar) {
         menuToggle.addEventListener('click', (e) => {
             e.stopPropagation();
-            sidebar.classList.toggle('active');
+            
+            if (window.innerWidth <= 768) {
+                // Mobile behavior: Toggle overlay sidebar
+                sidebar.classList.toggle('active');
+            } else {
+                // Desktop behavior: Toggle push sidebar
+                sidebar.classList.toggle('collapsed');
+                if (mainWrapper) mainWrapper.classList.toggle('full-width');
+            }
         });
 
-        // Close when clicking outside
+        // Close mobile sidebar when clicking outside
         document.addEventListener('click', (e) => {
             if (window.innerWidth <= 768 && 
+                sidebar.classList.contains('active') &&
                 !sidebar.contains(e.target) && 
                 !menuToggle.contains(e.target)) {
                 sidebar.classList.remove('active');

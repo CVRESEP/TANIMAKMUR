@@ -33,13 +33,20 @@ body {
 /* Sidebar Styling */
 .sidebar {
     width: var(--sidebar-width);
-    background: #1e293b; /* Slate-800 - Standard Pro Sidebar */
+    background: #1e293b; 
     color: white;
     display: flex;
     flex-direction: column;
     position: fixed;
     height: 100vh;
     z-index: 100;
+    transition: transform 0.3s ease;
+    left: 0;
+    top: 0;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-100%);
 }
 
 .sidebar-header {
@@ -137,6 +144,11 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    transition: margin-left 0.3s ease;
+}
+
+.main-wrapper.full-width {
+    margin-left: 0 !important;
 }
 
 .header {
@@ -150,6 +162,8 @@ body {
     position: sticky;
     top: 0;
     z-index: 50;
+    left: 0;
+    transition: left 0.3s ease;
 }
 
 .content-body {
@@ -683,23 +697,34 @@ tr:hover td {
     transition: all 0.2s;
 }
 
-.success-btn:hover, .success-btn:focus {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-    outline: 2px solid var(--primary-light);
-    outline-offset: 2px;
+#menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    color: #1e293b;
+    margin-right: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-#menu-toggle {
-    display: none;
+#menu-toggle:hover {
+    background: #e2e8f0;
+}
+
+#menu-toggle i {
+    width: 24px;
+    height: 24px;
 }
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
-        transition: transform 0.3s ease;
-        box-shadow: none;
     }
 
     .sidebar.active {
@@ -709,31 +734,10 @@ tr:hover td {
 
     .main-wrapper {
         margin-left: 0 !important;
-        width: 100%;
     }
 
     .header {
-        left: 0 !important;
         padding: 0 15px;
-    }
-
-    #menu-toggle {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 42px;
-        height: 42px;
-        background: #f1f5f9 !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 8px;
-        color: #1e293b !important;
-        margin-right: 15px;
-        cursor: pointer;
-    }
-
-    #menu-toggle i {
-        width: 24px;
-        height: 24px;
     }
 
     .header-right {
