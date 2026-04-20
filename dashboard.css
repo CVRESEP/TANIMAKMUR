@@ -723,13 +723,20 @@ tr:hover td {
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+    .mobile-only-btn {
+        display: block !important;
+    }
+
     .sidebar {
-        transform: translateX(-100%);
+        transform: translateX(-100%) !important;
+        left: 0 !important;
+        width: 280px !important;
+        box-shadow: none !important;
     }
 
     .sidebar.active {
-        transform: translateX(0);
-        box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+        transform: translateX(0) !important;
+        box-shadow: 10px 0 30px rgba(0,0,0,0.5) !important;
     }
 
     .main-wrapper {
@@ -742,6 +749,18 @@ tr:hover td {
 
     .header-right {
         display: none !important;
+    }
+
+    /* Add overlay when sidebar active */
+    body.sidebar-open::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 90;
     }
 
     .stats-grid {

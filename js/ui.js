@@ -28,12 +28,13 @@ function setupMobileNav() {
     const sidebar = document.getElementById('sidebar');
     const mainWrapper = document.querySelector('.main-wrapper');
     const sidebarHeader = document.querySelector('.sidebar-header');
+    const closeBtn = document.getElementById('close-sidebar');
     
-    // Toggle function shared for both buttons
     const toggleNav = (e) => {
         if (e) e.stopPropagation();
         if (window.innerWidth <= 768) {
             sidebar.classList.toggle('active');
+            document.body.classList.toggle('sidebar-open');
         } else {
             sidebar.classList.toggle('collapsed');
             if (mainWrapper) mainWrapper.classList.toggle('full-width');
@@ -42,20 +43,26 @@ function setupMobileNav() {
 
     if (menuToggle && sidebar) {
         menuToggle.addEventListener('click', toggleNav);
+        if (closeBtn) closeBtn.addEventListener('click', toggleNav);
         
-        // Also allow clicking the logo/header inside sidebar to close it
+        // Also allow clicking the logo header to close
         if (sidebarHeader) {
             sidebarHeader.style.cursor = 'pointer';
-            sidebarHeader.addEventListener('click', toggleNav);
+            sidebarHeader.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768 && sidebar.classList.contains('active')) {
+                    toggleNav(e);
+                }
+            });
         }
 
-        // Close mobile sidebar when clicking outside
+        // Close when clicking overlay (outside)
         document.addEventListener('click', (e) => {
             if (window.innerWidth <= 768 && 
                 sidebar.classList.contains('active') &&
                 !sidebar.contains(e.target) && 
                 !menuToggle.contains(e.target)) {
                 sidebar.classList.remove('active');
+                document.body.classList.remove('sidebar-open');
             }
         });
     }
