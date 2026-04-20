@@ -223,9 +223,6 @@ function runMigrations() {
     if (!STATE.rowLimits) STATE.rowLimits = { ...DEFAULT_STATE.rowLimits };
     if (!STATE.permissions) STATE.permissions = { ...DEFAULT_STATE.permissions };
 
-    // Update permissions for existing users
-    STATE.permissions = { ...DEFAULT_STATE.permissions };
-
     // Ensure arrays
     ['users', 'orders', 'penebusan', 'pengeluaran', 'penyaluran', 'drivers', 'products', 'kas_angkutan', 'kas_umum'].forEach(key => {
         if (!STATE[key] || !Array.isArray(STATE[key])) STATE[key] = [];

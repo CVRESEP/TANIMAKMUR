@@ -69,6 +69,9 @@ function renderSettings() {
                                 ${modules.map(mod => `
                                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.85rem;">
                                         <input type="checkbox" 
+                                               class="rbac-checkbox-${r.id}"
+                                               data-role="${r.id}"
+                                               data-module="${mod.id}"
                                                ${(STATE.permissions[r.id] || []).includes(mod.id) ? 'checked' : ''} 
                                                onchange="updateRolePermission('${r.id}', '${mod.id}', this.checked)">
                                         <span>${mod.name}</span>
@@ -77,6 +80,12 @@ function renderSettings() {
                             </div>
                         </div>
                     `).join('')}
+                </div>
+
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: center;">
+                    <button class="action-btn primary" onclick="saveAllPermissions()" style="background: #1e40af; padding: 12px 40px; font-weight: 800; border-radius: 99px; height: auto;">
+                        <i data-lucide="shield-check" style="width: 18px;"></i> SIMPAN SEMUA HAK AKSES
+                    </button>
                 </div>
             </div>
         </div>
@@ -224,8 +233,11 @@ function updateRolePermission(roleId, moduleId, isChecked) {
     } else {
         STATE.permissions[roleId] = STATE.permissions[roleId].filter(id => id !== moduleId);
     }
+}
+
+function saveAllPermissions() {
     saveState();
-    showToast(`Hak akses ${roleId} diperbarui.`);
+    showToast(`Semua hak akses berhasil disimpan ke server cloud.`);
 }
 
 function downloadBackup() {
