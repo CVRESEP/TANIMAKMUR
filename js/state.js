@@ -6,10 +6,12 @@
  * Database : data/tanimakmur.db (di PC server)
  */
 
-// Auto-detect server host: gunakan hostname yang sama dengan URL yang dibuka
-// Ini memungkinkan PC lain di jaringan LAN mengakses tanpa perlu setting apapun
-const _serverHost = window.location.hostname || 'localhost';
-const API_BASE = `http://${_serverHost}:3737/api`;
+const _hostname = window.location.hostname;
+const IS_CLOUD = _hostname.includes('pages.dev') || _hostname.includes('github.io') || _hostname.includes('vercel.app');
+
+// Jika di Cloud (internet), gunakan path relatif agar ditangkap oleh Cloudflare Functions.
+// Jika di localhost/IP, gunakan port 3737.
+const API_BASE = IS_CLOUD ? '/api' : `http://${_hostname}:3737/api`;
 const STORAGE_KEY = 'tm_state_v1';
 
 let DB_MODE = false;       // true = pakai SQLite server, false = localStorage
@@ -122,15 +124,20 @@ function showDatabaseBadge(isServer) {
             : 'background: #d97706; color: #fff;'
         }
     `;
-    badge.innerHTML = isServer
-        ? '🗄️ SQLite Lokal — Data Aman di PC'
-        : '⚠️ localStorage — Jalankan server.js';
+    badge.innerHTML = IS_CLOUD
+        ? '☁️ Cloud Sync — Data Tersimpan di Turso'
+        : (isServer
+            ? '🗄️ SQLite Lokal — Data Aman di PC'
+            : '⚠️ localStorage — Jalankan server.js');
+    
+    badge.style.background = IS_CLOUD ? '#0369a1' : (isServer ? '#15803d' : '#d97706');
+    
     badge.onclick = () => {
-        if (!isServer) window.open('/migrate.html', '_blank');
+        if (!isServer && !IS_CLOUD) window.open('/migrate.html', '_blank');
     };
-    badge.title = isServer
-        ? 'Database tersimpan di PC via SQLite'
-        : 'Klik untuk buka halaman migrasi';
+    badge.title = IS_CLOUD 
+        ? 'Data terhubung langsung ke Turso Cloud DB'
+        : (isServer ? 'Database tersimpan di PC via SQLite' : 'Klik untuk buka halaman migrasi');
     document.body.appendChild(badge);
 }
 

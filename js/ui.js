@@ -7,6 +7,11 @@ function setupRouting() {
             const page = link.getAttribute('data-page');
             window.location.hash = page;
             navigateTo(page);
+
+            // Close sidebar on mobile after clicking menu
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('active');
+            }
         });
     });
 
@@ -14,6 +19,29 @@ function setupRouting() {
         const page = window.location.hash.replace('#', '') || 'dashboard';
         navigateTo(page);
     });
+
+    setupMobileNav();
+}
+
+function setupMobileNav() {
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+    
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sidebar.classList.toggle('active');
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(e.target) && 
+                !menuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        });
+    }
 }
 
 function navigateTo(pageId) {
