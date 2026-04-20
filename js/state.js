@@ -73,33 +73,50 @@ function loadFromLocalStorage() {
     }
 }
 
-// ── Load from SQLite server ──────────────────────────────────────────────────
-async function loadFromServer() {
+// ── Load from SQLite server / Cloud ──────────────────────────────────────────
+async function loadFromServer(silent = false) {
+    if (DB_SYNC_DIRTY) return false; 
+
     try {
-        const r = await fetch(`${API_BASE}/load-state`, { signal: AbortSignal.timeout(2000) });
+        const r = await fetch(`${API_BASE}/load-state`, { signal: AbortSignal.timeout(5000) });
         if (!r.ok) throw new Error('Server error');
         const serverState = await r.json();
 
-        // Overwrite data arrays and metadata from server, keep UI state from localStorage
+        // Data arrays to sync
         const keys = ['users', 'products', 'penebusan', 'pengeluaran', 'penyaluran', 'orders', 'drivers', 'permissions', 'rowLimits', 'activeBranchFilter', 'kas_angkutan', 'kas_umum', 'settings'];
+        let hasChanges = false;
+        
         keys.forEach(key => {
             if (serverState[key] !== undefined) {
-                STATE[key] = serverState[key];
+                const current = JSON.stringify(STATE[key]);
+                const cloud = JSON.stringify(serverState[key]);
+                if (current !== cloud) {
+                    STATE[key] = serverState[key];
+                    hasChanges = true;
+                }
             }
         });
 
-        // Preserve current user session
+        // Update current user session from local storage if needed
         const session = localStorage.getItem('tm_current_user');
         if (session) { try { STATE.currentUser = JSON.parse(session); } catch {} }
 
         DB_MODE = true;
         showDatabaseBadge(true);
-        console.log('%c[TM DB] Mode: SQLite Server ✓', 'color:#16a34a; font-weight:bold');
+        
+        if (hasChanges) {
+            if (!silent) console.log('%c[TM DB] Data updated from Cloud. Refreshing UI...', 'color:#0369a1; font-weight:bold');
+            const hash = window.location.hash.replace('#', '') || 'dashboard';
+            if (typeof navigateTo === 'function') navigateTo(hash);
+        }
+
         return true;
     } catch (e) {
-        DB_MODE = false;
-        showDatabaseBadge(false);
-        console.warn('[TM DB] Server offline. Mode: localStorage');
+        if (!silent) {
+            DB_MODE = false;
+            showDatabaseBadge(false);
+            console.warn('[TM DB] Connection error:', e.message);
+        }
         return false;
     }
 }
@@ -289,6 +306,11 @@ async function initializeState() {
         const hash = window.location.hash.replace('#', '') || 'dashboard';
         navigateTo(hash);
     }
+
+    // Step 5: Start background auto-refresh (Polling every 30 seconds)
+    setInterval(() => {
+        loadFromServer(true); 
+    }, 30000);
 }
 
 // ── Start initialization ──────────────────────────────────────────────────────
