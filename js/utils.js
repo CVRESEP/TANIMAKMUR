@@ -219,9 +219,9 @@ function importFromExcel(type, file) {
         // Merge logic with data processing
         if (type === 'kiosks_dir') {
             const processedKiosks = jsonData.map(item => {
-                // Determine name from various possible columns
-                const rawName = item['NAMA KIOS'] || item.name || 'TANPA NAMA';
-                const baseUsername = String(item.username || rawName).toLowerCase().replace(/[^a-z0-9]/g, '');
+                // Determine name from various possible columns and trim values
+                const rawName = String(item['NAMA KIOS'] || item.name || 'TANPA NAMA').trim();
+                const baseUsername = String(item.username || rawName).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
                 
                 // Ensure Unique Username
                 let finalUsername = baseUsername;
@@ -234,18 +234,27 @@ function importFromExcel(type, file) {
                 return {
                     name: rawName,
                     username: finalUsername,
-                    password: String(item.password || item['PASSWORD'] || '123'),
-                    role: 'KIOS',
-                    branch: item['KABUPATEN'] || item.branch || 'MAGETAN',
-                    kecamatan: item['KECAMATAN'] || item.kecamatan || '',
-                    desa: item['DESA'] || item.desa || '',
-                    pic: item['PENANGGUNG JAWAB'] || item.pic || '',
-                    phone: item['NOMOR TELEPON'] || item.phone || ''
+                    password: String(item.password || item['PASSWORD'] || '123').trim(),
+                    role: String(item['PERAN'] || item['ROLE'] || 'KIOS').trim().toUpperCase(),
+                    branch: String(item['KABUPATEN'] || item.branch || 'MAGETAN').trim().toUpperCase(),
+                    kecamatan: String(item['KECAMATAN'] || item.kecamatan || '').trim(),
+                    desa: String(item['DESA'] || item.desa || '').trim(),
+                    pic: String(item['PENANGGUNG JAWAB'] || item.pic || '').trim(),
+                    phone: String(item['NOMOR TELEPON'] || item.phone || '').trim()
                 };
             });
             STATE.users = [...STATE.users, ...processedKiosks];
         } else {
-            STATE[type] = [...(STATE[type] || []), ...jsonData];
+            // Generic import: also trim all keys and values
+            const processedData = jsonData.map(row => {
+                const cleanRow = {};
+                Object.keys(row).forEach(k => {
+                    let val = row[k];
+                    cleanRow[k] = (typeof val === 'string') ? val.trim() : val;
+                });
+                return cleanRow;
+            });
+            STATE[type] = [...(STATE[type] || []), ...processedData];
         }
 
         saveState();
