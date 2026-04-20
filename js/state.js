@@ -143,26 +143,19 @@ function showDatabaseBadge(isServer) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SAVE STATE
-// Jika server aktif → sync ke SQLite; selalu juga ke localStorage (backup)
 // ─────────────────────────────────────────────────────────────────────────────
 function saveState() {
-    // 1. Always save to localStorage as backup
+    // 1. Local backup
     const persistState = Object.assign({}, STATE);
-    delete persistState.currentUser; // currentUser pakai tm_current_user
+    delete persistState.currentUser;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(persistState));
 
-    // 2. Sync to SQLite if mode is active
-    if (DB_MODE) {
-        syncToServer();
-    }
+    // 2. Immediate push to Cloud if online
+    syncToServer();
 
-    // Update UI badges
-    if (typeof updateSidebarBadges === 'function') {
-        updateSidebarBadges();
-    }
+    if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
 }
 
-// Debounced sync to server (avoid hammering on rapid saves)
 let syncTimer = null;
 function syncToServer(immediate = false) {
     DB_SYNC_DIRTY = true;
@@ -172,47 +165,34 @@ function syncToServer(immediate = false) {
         if (!DB_SYNC_DIRTY) return;
         try {
             const payload = {
-                users: STATE.users,
-                products: STATE.products,
-                penebusan: STATE.penebusan,
-                pengeluaran: STATE.pengeluaran,
-                penyaluran: STATE.penyaluran,
-                orders: STATE.orders,
-                drivers: STATE.drivers,
-                permissions: STATE.permissions,
-                rowLimits: STATE.rowLimits,
+                users: STATE.users, products: STATE.products, penebusan: STATE.penebusan,
+                pengeluaran: STATE.pengeluaran, penyaluran: STATE.penyaluran, 
+                orders: STATE.orders, drivers: STATE.drivers,
+                permissions: STATE.permissions, rowLimits: STATE.rowLimits,
                 activeBranchFilter: STATE.activeBranchFilter,
-                kas_angkutan: STATE.kas_angkutan,
-                kas_umum: STATE.kas_umum,
-                suppliers: STATE.suppliers,
-                settings: STATE.settings
+                kas_angkutan: STATE.kas_angkutan, kas_umum: STATE.kas_umum,
+                suppliers: STATE.suppliers, settings: STATE.settings
             };
             
             const r = await fetch(`${API_BASE}/sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ state: payload }),
-                keepalive: true, // Crucial for sync on unload
-                signal: AbortSignal.timeout(10000)
+                keepalive: true
             });
             
             if (r.ok) {
                 DB_SYNC_DIRTY = false;
-                console.log('%c[TM DB] Sync OK ✓', 'color:#16a34a');
                 DB_MODE = true;
                 showDatabaseBadge(true);
             }
         } catch (e) {
-            console.warn('[TM DB] Sync delayed/failed:', e.message);
-            // Don't immediately switch to offline mode unless we're sure
+            console.warn('[TM] Sync error:', e.message);
         }
     };
 
-    if (immediate) {
-        performSync();
-    } else {
-        syncTimer = setTimeout(performSync, 300); // Reduced debounce to 300ms
-    }
+    if (immediate || IS_CLOUD) performSync(); 
+    else syncTimer = setTimeout(performSync, 500); 
 }
 
 // Force manual sync
