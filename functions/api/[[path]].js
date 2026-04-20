@@ -13,12 +13,18 @@ export async function onRequest(context) {
     const TURSO_TOKEN = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzY3MDg2NDUsImlkIjoiMDE5ZGFjMTQtZjAwMS03NTZiLWIxNmEtZjliYzE1YWExODE0IiwicmlkIjoiZTBkMWFhODUtOTg0OC00MjVkLWI5N2EtMWU0ODA1ZmJlYTNkIn0.HuGaB5DogClfIH9r3KzzcBSU5jrpWIIuTW1-A2hciSJmJZOHzitYnMlHemsMhrcRaw6pCmigb-avnyIwHUs9Ag';
 
     async function queryTurso(statements) {
-        const res = await fetch(`${TURSO_URL}/v1/execute`, {
+        const requests = statements.map(s => ({
+            type: "execute",
+            stmt: { sql: s.q, args: s.args || [] }
+        }));
+        const res = await fetch(`${TURSO_URL}/v2/pipeline`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${TURSO_TOKEN}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ statements })
+            body: JSON.stringify({ requests })
         });
-        return await res.json();
+        const data = await res.json();
+        if (!data.results) throw new Error(data.message || 'Pipeline error');
+        return data.results.map(r => r.response?.result || r.response || r);
     }
 
     // ── LOAD STATE ─────────────────────────────────────────────────────────────
@@ -26,14 +32,18 @@ export async function onRequest(context) {
         try {
             const tables = ['users', 'products', 'penebusan', 'pengeluaran', 'penyaluran', 'orders', 'drivers', 'kas_angkutan', 'kas_umum', 'suppliers', 'settings'];
             const statements = tables.map(t => ({ q: `SELECT * FROM "${t}"` }));
-            const data = await queryTurso(statements);
+            const results = await queryTurso(statements);
 
             const state = {};
             tables.forEach((table, idx) => {
-                const result = data[idx].results;
+                const result = results[idx];
+                if (!result || !result.rows) return;
+                
                 const rows = result.rows.map(r => {
                     const obj = {};
-                    result.columns.forEach((c, i) => obj[c] = r[i]);
+                    result.cols.forEach((col, i) => {
+                        obj[col.name] = r[i].value;
+                    });
                     return obj;
                 });
 
@@ -65,14 +75,26 @@ export async function onRequest(context) {
 
             const batch = [];
             
-            // Delete and Re-insert for each table
             for (const [stateKey, table] of Object.entries(tableMap)) {
                 if (!Array.isArray(state[stateKey])) continue;
                 batch.push({ q: `DELETE FROM "${table}"` });
                 for (const row of state[stateKey]) {
                     const cols = Object.keys(row);
                     const placeholders = cols.map(() => '?').join(', ');
-                    const args = cols.map(c => (typeof row[c] === 'object' && row[c] !== null) ? JSON.stringify(row[c]) : row[c]);
+                    const args = cols.map(c => {
+                        let val = row[c];
+                        if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+                        
+                        // Convert to Turso /v2/pipeline expected arg format { type, value }
+                        if (val === null) return { type: "null" };
+                        if (typeof val === "number") {
+                            return Number.isInteger(val) 
+                                ? { type: "integer", value: val.toString() }
+                                : { type: "float", value: val };
+                        }
+                        return { type: "text", value: String(val) };
+                    });
+                    
                     batch.push({ 
                         q: `INSERT OR REPLACE INTO "${table}" (${cols.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`,
                         args 
@@ -80,21 +102,25 @@ export async function onRequest(context) {
                 }
             }
 
-            // Sync Settings metadata
             const metadataKeys = ['permissions', 'rowLimits', 'activeBranchFilter', 'settings'];
             for (const key of metadataKeys) {
                 if (state[key] !== undefined) {
                     batch.push({
                         q: 'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
-                        args: [key, JSON.stringify(state[key])]
+                        args: [
+                            { type: "text", value: key },
+                            { type: "text", value: JSON.stringify(state[key]) }
+                        ]
                     });
                 }
             }
 
-            await queryTurso(batch);
+            if (batch.length > 0) {
+                await queryTurso(batch);
+            }
             return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
         } catch (e) {
-            return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+            return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
         }
     }
 
