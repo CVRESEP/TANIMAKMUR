@@ -27,20 +27,27 @@ function setupMobileNav() {
     const menuToggle = document.getElementById('menu-toggle');
     const sidebar = document.getElementById('sidebar');
     const mainWrapper = document.querySelector('.main-wrapper');
+    const sidebarHeader = document.querySelector('.sidebar-header');
     
+    // Toggle function shared for both buttons
+    const toggleNav = (e) => {
+        if (e) e.stopPropagation();
+        if (window.innerWidth <= 768) {
+            sidebar.classList.toggle('active');
+        } else {
+            sidebar.classList.toggle('collapsed');
+            if (mainWrapper) mainWrapper.classList.toggle('full-width');
+        }
+    };
+
     if (menuToggle && sidebar) {
-        menuToggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            
-            if (window.innerWidth <= 768) {
-                // Mobile behavior: Toggle overlay sidebar
-                sidebar.classList.toggle('active');
-            } else {
-                // Desktop behavior: Toggle push sidebar
-                sidebar.classList.toggle('collapsed');
-                if (mainWrapper) mainWrapper.classList.toggle('full-width');
-            }
-        });
+        menuToggle.addEventListener('click', toggleNav);
+        
+        // Also allow clicking the logo/header inside sidebar to close it
+        if (sidebarHeader) {
+            sidebarHeader.style.cursor = 'pointer';
+            sidebarHeader.addEventListener('click', toggleNav);
+        }
 
         // Close mobile sidebar when clicking outside
         document.addEventListener('click', (e) => {
