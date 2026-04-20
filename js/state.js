@@ -215,6 +215,20 @@ function syncToServer(immediate = false) {
     }
 }
 
+// Force manual sync
+async function forceSync() {
+    showToast('🔄 Memulai Sinkronisasi Data ke Cloud...', 'success');
+    try {
+        await syncToServer(true);
+        // Wait a bit to ensure sync finishes
+        setTimeout(() => {
+            showToast('✅ Sinkronisasi Berhasil! Cek di HP Anda sekarang.', 'success');
+        }, 1500);
+    } catch (e) {
+        showToast('❌ Sinkronisasi Gagal: ' + e.message, 'error');
+    }
+}
+
 // Ensure data is synced before user leaves or refreshes the page
 window.addEventListener('beforeunload', () => {
     if (DB_SYNC_DIRTY) {
