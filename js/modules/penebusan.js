@@ -143,8 +143,10 @@ function savePenebusan(e) {
         date: fd.get('date'),
         product: product.name,
         productCode: product.code,
+        branch: STATE.currentUser.branch, // Added branch from current user
         kabupaten: fd.get('kabupaten'),
         qty: qty,
+        harga: product.buyPrice || product.price, // Added harga/price
         total: qty * (product.buyPrice || product.price) 
     };
 
