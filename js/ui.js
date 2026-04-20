@@ -11,6 +11,7 @@ function setupRouting() {
             // Close sidebar on mobile after clicking menu
             if (window.innerWidth <= 768) {
                 document.getElementById('sidebar').classList.remove('active');
+                document.body.classList.remove('sidebar-open');
             }
         });
     });
