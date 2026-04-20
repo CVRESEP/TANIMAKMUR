@@ -70,7 +70,8 @@ export async function onRequest(context) {
             const tableMap = {
                 users: 'users', products: 'products', penebusan: 'penebusan',
                 pengeluaran: 'pengeluaran', penyaluran: 'penyaluran', orders: 'orders',
-                kas_angkutan: 'kas_angkutan', kas_umum: 'kas_umum', suppliers: 'suppliers'
+                kas_angkutan: 'kas_angkutan', kas_umum: 'kas_umum', suppliers: 'suppliers',
+                drivers: 'drivers'
             };
 
             const batch = [];
