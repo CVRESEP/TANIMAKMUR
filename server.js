@@ -76,8 +76,8 @@ app.post('/api/sync', async (req, res) => {
       if (!Array.isArray(rows)) continue;
 
       // SAFETY: Jangan hapus data jika array kosong (mungkin karena kegagalan load di frontend)
-      // Khusus untuk tabel vital seperti users, products, penebusan
-      const isVital = ['users', 'products', 'penebusan', 'penyaluran'].includes(table);
+      // Khusus untuk tabel vital seperti users, products.
+      const isVital = ['users', 'products'].includes(table);
       if (isVital && rows.length === 0) {
         console.warn(`[SYNC] Ditunda untuk tabel ${table}: data kosong terdeteksi.`);
         continue;

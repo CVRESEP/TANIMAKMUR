@@ -81,7 +81,7 @@ export async function onRequest(context) {
                 if (!Array.isArray(rows)) continue;
 
                 // SAFETY: Jangan hapus data jika array kosong (mungkin karena kegagalan load di frontend)
-                const isVital = ['users', 'products', 'penebusan', 'penyaluran', 'drivers'].includes(table);
+                const isVital = ['users', 'products'].includes(table);
                 if (isVital && rows.length === 0) {
                     console.warn(`[SYNC] Skipped table ${table} due to empty data (Safety Guard)`);
                     continue;

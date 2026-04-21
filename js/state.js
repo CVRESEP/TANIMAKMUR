@@ -125,13 +125,16 @@ function saveState(immediate = false) {
 
 let syncTimer = null;
 let isSyncing = false;
+let needAnotherSync = false;
 
 function syncToServer(immediate = false) {
     DB_SYNC_DIRTY = true;
+    needAnotherSync = true;
     clearTimeout(syncTimer);
     
     const performSync = async (retryCount = 0) => {
-        if (!DB_SYNC_DIRTY || isSyncing) return;
+        if (isSyncing) return; // Jika sedang sync, biarkan yang berjalan, nanti di-catch di finally block
+        
         if (!STATE_LOADED_FROM_SERVER) {
             console.warn('[TM CLOUD] Sync ditunda: Data belum termuat sempurna dari server.');
             return;
@@ -139,8 +142,10 @@ function syncToServer(immediate = false) {
 
         try {
             isSyncing = true;
+            needAnotherSync = false;
             updateSyncBadge('syncing');
 
+            // Kita capture data pada saat mau fetch (TERBARU)
             const payload = {
                 users: STATE.users, products: STATE.products, penebusan: STATE.penebusan,
                 pengeluaran: STATE.pengeluaran, penyaluran: STATE.penyaluran, 
@@ -159,27 +164,39 @@ function syncToServer(immediate = false) {
             });
             
             if (r.ok) {
-                DB_SYNC_DIRTY = false;
+                if (!needAnotherSync) {
+                    DB_SYNC_DIRTY = false;
+                }
                 updateSyncBadge('online');
             } else {
-                throw new Error('Sync failed');
+                throw new Error('Sync failed with status: ' + r.status);
             }
         } catch (e) {
             console.warn('[TM CLOUD] Sync error:', e.message);
             updateSyncBadge('offline');
             
-            // Retry logic (max 3 times)
+            // Auto retry
             if (retryCount < 3) {
                 console.log(`[TM CLOUD] Retrying sync... (${retryCount + 1}/3)`);
                 setTimeout(() => performSync(retryCount + 1), 3000);
+            } else {
+                // If it totally fails, flag it so next action retries
+                needAnotherSync = true;
             }
         } finally {
             isSyncing = false;
+            if (needAnotherSync) {
+                // Jika ada data baru tapi sync di atas sedang jalan, jalankan lagi sync nya!
+                syncTimer = setTimeout(() => performSync(0), 1000);
+            }
         }
     };
 
-    if (immediate) performSync(); 
-    else syncTimer = setTimeout(performSync, 2000); 
+    if (immediate) {
+        performSync(0); 
+    } else {
+        syncTimer = setTimeout(() => performSync(0), 2000); 
+    }
 }
 
 function updateSyncBadge(status) {
