@@ -41,11 +41,16 @@ function getFilteredData(type) {
     
     // Restricted filtering
     return data.filter(d => {
-        const itemBranch = (d.branch || d.kabupaten || '').trim().toUpperCase();
+        let rawBranch = d.branch;
+        if (rawBranch === 'ALL' && d.kabupaten) rawBranch = d.kabupaten;
+        
+        let itemBranch = (rawBranch || d.kabupaten || '').trim().toUpperCase();
+        if (itemBranch === '') itemBranch = 'MAGETAN'; // Fallback for old data without branch
+
         const filterBranchUpper = filterBranch.toUpperCase();
 
         if (filterBranchUpper === 'ALL') return true;
-        if (itemBranch === '' || itemBranch === 'ALL') return true;
+        if (itemBranch === 'ALL') return true;
         
         return itemBranch === filterBranchUpper;
     });

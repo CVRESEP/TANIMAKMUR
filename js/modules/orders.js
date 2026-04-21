@@ -57,14 +57,7 @@ function openAddOrderModal() {
 
     let kioskSelectionHtml = '';
     if (isAdminRole) {
-        const availableKiosks = STATE.users.filter(u => {
-            if (u.role !== 'KIOS') return false;
-            if (currentUser.branch === 'ALL') {
-                const filter = STATE.activeBranchFilter || 'ALL';
-                return filter === 'ALL' || u.branch === filter;
-            }
-            return u.branch === currentUser.branch;
-        });
+        const availableKiosks = getFilteredData('users').filter(u => u.role === 'KIOS');
 
         kioskSelectionHtml = `
             <div class="form-group">

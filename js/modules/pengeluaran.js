@@ -223,7 +223,7 @@ function openDirectPenyaluranModal(id) {
 
     if (sisa <= 0) return openErrorModal('STOK HABIS', 'DO ini sudah habis disalurkan.');
 
-    const kiosks = STATE.users.filter(u => u.role === 'KIOS');
+    const kiosks = getFilteredData('users').filter(u => u.role === 'KIOS');
     const drivers = STATE.drivers;
 
     const content = `

@@ -3,13 +3,24 @@ function renderDailyReport() {
     if (!container) return;
 
     const selectedDate = document.getElementById('dr-date')?.value || new Date().toISOString().split('T')[0];
-    const selectedBranch = document.getElementById('dr-branch')?.value || 'ALL';
+    let selectedBranch = document.getElementById('dr-branch')?.value || 'ALL';
+
+    const currentUser = STATE.currentUser;
+    const isRestricted = !['OWNER', 'MANAJER'].includes((currentUser.role || '').toUpperCase());
+    if (isRestricted && currentUser.branch !== 'ALL') {
+        selectedBranch = currentUser.branch;
+    }
 
     // Set inputs if they exist
     const dateInput = document.getElementById('dr-date');
     const branchInput = document.getElementById('dr-branch');
     if (dateInput) dateInput.value = selectedDate;
-    if (branchInput) branchInput.value = selectedBranch;
+    if (branchInput) {
+        branchInput.value = selectedBranch;
+        if (isRestricted && currentUser.branch !== 'ALL') {
+            branchInput.style.display = 'none'; // Hide dropdown for restricted branch users
+        }
+    }
 
     const tbody = document.getElementById('dr-table-body');
     const summaryBody = document.getElementById('dr-summary-body');

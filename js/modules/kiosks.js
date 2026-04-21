@@ -4,16 +4,8 @@ function renderKiosks() {
     if (!tbody) return;
 
     // Explicitly filter kiosks by branch for CABANG role
-    const currentUser = STATE.currentUser;
-    const kiosks = STATE.users.filter(u => {
-        if (u.role !== 'KIOS') return false;
-        if (currentUser.branch === 'ALL') {
-            const filter = STATE.activeBranchFilter || 'ALL';
-            return filter === 'ALL' || u.branch === filter;
-        }
-        return u.branch === currentUser.branch;
-    });
-    
+    const kiosks = getFilteredData('users').filter(u => u.role === 'KIOS');
+
     const data = paginateData(kiosks, 'kiosks');
     renderSelectionActions('kiosks_dir');
     const isSelectMode = STATE.uiSelectionMode['kiosks_dir'];
@@ -243,14 +235,7 @@ function viewKioskOrders(kioskName) {
     openModal(title, content, '800px');
 }
 function printKioskDebts() {
-    const kiosks = STATE.users.filter(u => {
-        if (u.role !== 'KIOS') return false;
-        if (STATE.currentUser.branch === 'ALL') {
-            const filter = STATE.activeBranchFilter || 'ALL';
-            return filter === 'ALL' || u.branch === filter;
-        }
-        return u.branch === STATE.currentUser.branch;
-    });
+    const kiosks = getFilteredData('users').filter(u => u.role === 'KIOS');
 
     const reportData = kiosks.map(k => {
         const unpaidOrders = STATE.orders.filter(o => 
