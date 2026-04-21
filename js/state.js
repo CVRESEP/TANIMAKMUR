@@ -113,28 +113,34 @@ function showDatabaseBadge(isOnline) {
     document.body.appendChild(badge);
 }
 
-function saveState() {
+function saveState(immediate = false) {
     // Session is the only thing we keep in localStorage
     localStorage.setItem('tm_current_user', JSON.stringify(STATE.currentUser));
     
     // Sync other data to server
-    syncToServer();
+    syncToServer(immediate);
 
     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
 }
 
 let syncTimer = null;
+let isSyncing = false;
+
 function syncToServer(immediate = false) {
     DB_SYNC_DIRTY = true;
     clearTimeout(syncTimer);
     
-    const performSync = async () => {
-        if (!DB_SYNC_DIRTY) return;
+    const performSync = async (retryCount = 0) => {
+        if (!DB_SYNC_DIRTY || isSyncing) return;
         if (!STATE_LOADED_FROM_SERVER) {
             console.warn('[TM CLOUD] Sync ditunda: Data belum termuat sempurna dari server.');
             return;
         }
+
         try {
+            isSyncing = true;
+            updateSyncBadge('syncing');
+
             const payload = {
                 users: STATE.users, products: STATE.products, penebusan: STATE.penebusan,
                 pengeluaran: STATE.pengeluaran, penyaluran: STATE.penyaluran, 
@@ -154,16 +160,45 @@ function syncToServer(immediate = false) {
             
             if (r.ok) {
                 DB_SYNC_DIRTY = false;
-                showDatabaseBadge(true);
+                updateSyncBadge('online');
+            } else {
+                throw new Error('Sync failed');
             }
         } catch (e) {
             console.warn('[TM CLOUD] Sync error:', e.message);
-            showDatabaseBadge(false);
+            updateSyncBadge('offline');
+            
+            // Retry logic (max 3 times)
+            if (retryCount < 3) {
+                console.log(`[TM CLOUD] Retrying sync... (${retryCount + 1}/3)`);
+                setTimeout(() => performSync(retryCount + 1), 3000);
+            }
+        } finally {
+            isSyncing = false;
         }
     };
 
     if (immediate) performSync(); 
-    else syncTimer = setTimeout(performSync, 1000); 
+    else syncTimer = setTimeout(performSync, 2000); 
+}
+
+function updateSyncBadge(status) {
+    const badge = document.getElementById('db-mode-badge');
+    if (!badge) {
+        showDatabaseBadge(status === 'online' || status === 'syncing');
+        return;
+    }
+
+    if (status === 'syncing') {
+        badge.style.background = '#0ea5e9';
+        badge.innerHTML = '🔄 Sedang Menyimpan ke Cloud...';
+    } else if (status === 'online') {
+        badge.style.background = '#0369a1';
+        badge.innerHTML = '☁️ Cloud Connected — Turso Sync Aktif';
+    } else {
+        badge.style.background = '#ef4444';
+        badge.innerHTML = '⚠️ Terputus — Mencoba Menghubungkan Kembali...';
+    }
 }
 
 async function forceSync() {

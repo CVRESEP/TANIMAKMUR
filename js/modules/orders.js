@@ -399,7 +399,7 @@ function deleteOrder(id) {
         // Clear linked Kas Angkutan
         STATE.kas_angkutan = STATE.kas_angkutan.filter(k => !linkedPylIds.includes(k.noPyl));
         
-        saveState();
+        saveState(true);
         
         // Refresh appropriate view based on role
         if (STATE.currentUser.role === 'KIOS') {

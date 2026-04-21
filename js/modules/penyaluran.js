@@ -207,7 +207,7 @@ function deletePenyaluran(id) {
         String(k.noPyl).trim().toUpperCase() !== targetId
     );
 
-    saveState();
+    saveState(true);
     renderPenyaluran();
     
     // Refresh finance view if visible

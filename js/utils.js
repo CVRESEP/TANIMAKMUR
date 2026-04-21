@@ -301,7 +301,7 @@ function bulkDelete(type) {
             return !checked.includes(String(val));
         });
 
-        saveState();
+        saveState(true);
         STATE.uiSelectionMode[type] = false;
         const currentHash = window.location.hash.replace('#', '') || 'dashboard';
         navigateTo(currentHash);

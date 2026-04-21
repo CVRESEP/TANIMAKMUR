@@ -304,9 +304,11 @@ function processBulkApprovalFromModal(type) {
     if (confirm(`Anda akan mencairkan dana senilai ${formatCurrency(finalTotalAcc)} untuk ${checked.length} data terpilih?`)) {
         
         // 1. Mark existing items as approved
+        let targetBranch = 'MAGETAN';
         STATE[type].forEach(item => {
             if (checked.includes(String(item.id))) {
                 item.status = 'DISETUJUI';
+                targetBranch = item.branch || item.kabupaten || targetBranch;
             }
         });
 
@@ -314,11 +316,11 @@ function processBulkApprovalFromModal(type) {
         const newEntry = {
             id: 'TX-IN-' + Date.now(),
             date: new Date().toISOString().split('T')[0],
-            desc: `PENCAIRAN DANA ${label} (OVERALL ACC) - ${checked.length} DATA`,
+            desc: `PENCAIRAN DANA ${label} (ACC OWNER) - ${checked.length} DATA`,
             masuk: finalTotalAcc,
             keluar: 0,
-            branch: STATE.currentUser.branch === 'ALL' ? 'MAGETAN' : STATE.currentUser.branch,
-            kabupaten: STATE.currentUser.branch === 'ALL' ? 'MAGETAN' : STATE.currentUser.branch,
+            branch: targetBranch,
+            kabupaten: targetBranch,
             status: 'DISETUJUI'
         };
         
@@ -554,8 +556,16 @@ function autoCreateKasAngkutan(pylId) {
     const pyl = STATE.penyaluran.find(p => p.id === pylId);
     if (!pyl) return;
 
+    // Smart Branch Detection
+    let kab = (pyl.kabupaten || pyl.branch || '').toUpperCase().trim();
+    if (!kab || kab === 'ALL') {
+        const kioskUser = STATE.users.find(u => u.name === pyl.kios && u.role === 'KIOS');
+        kab = kioskUser?.branch || 'MAGETAN';
+    }
+    
+    kab = (kab === 'ALL' || !kab) ? 'MAGETAN' : kab;
+
     const qty = parseFloat(pyl.qty) || 0;
-    const kab = pyl.kabupaten || pyl.branch || 'MAGETAN';
     const desc = `BIAYA ANGKUTAN (AUTO) - ${pyl.id} - ${pyl.product} - ${pyl.kios}`;
     
     let admin = 0, solar = 0;
@@ -595,11 +605,7 @@ function autoCreateKasAngkutan(pylId) {
     const exists = STATE.kas_angkutan.some(k => k.noPyl === pylId && k.desc.includes('(AUTO)'));
     if (!exists) {
         STATE.kas_angkutan.unshift(newEntry);
-        // We don't saveState() here yet, let the caller save if needed, 
-        // but for safety in this modular design, it's better to save if we mutate.
-        saveState();
-    } else {
-        // Optional: update existing? For now, let's just avoid duplication.
+        saveState(true); // Sync IMMEDIATELY to prevent loss during redirect
     }
 }
 
