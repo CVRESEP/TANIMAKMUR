@@ -324,6 +324,7 @@ function confirmOrder(id, nextStatus) {
 
     if (nextStatus === 'APPROVED') {
         order.status = 'LUNAS';
+        order.paymentDate = new Date().toISOString().split('T')[0];
         saveState();
         renderApprovals();
         openSuccessModal('PEMBAYARAN DIKONFIRMASI', `Pesanan <strong>${id}</strong> telah dinyatakan LUNAS.`);

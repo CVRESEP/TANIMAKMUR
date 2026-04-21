@@ -349,13 +349,13 @@ function renderSelectionActions(type) {
                     MODE PILIH AKTIF: Pilih data pada tabel untuk penghapusan masal.
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    ${type === 'kas_angkutan' ? `
+                    ${(type === 'kas_angkutan' || type === 'kas_umum') ? `
                         ${['OWNER', 'MANAJER'].includes(STATE.currentUser.role.toUpperCase()) ? `
-                            <button class="action-btn primary" onclick="approveFinanceTransactions()" style="background: #10b981; border-color: #059669;">
+                            <button class="action-btn primary" onclick="approveFinanceTransactions('${type}')" style="background: #10b981; border-color: #059669;">
                                 <i data-lucide="check-circle"></i> SETUJUI (APPROVE)
                             </button>
                         ` : `
-                            <button class="action-btn primary" onclick="submitFinanceForApproval()" style="background: #0ea5e9; border-color: #0284c7;">
+                            <button class="action-btn primary" onclick="submitFinanceForApproval('${type}')" style="background: #0ea5e9; border-color: #0284c7;">
                                 <i data-lucide="send"></i> MINTA DANA (AJUKAN)
                             </button>
                         `}

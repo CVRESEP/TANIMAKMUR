@@ -113,14 +113,22 @@ function renderDailyReport() {
         .filter(o => isBranchMatch(o.branch) && o.date < selectedDate && o.status !== 'DIBATALKAN')
         .reduce((sum, o) => sum + (o.total || 0), 0);
     
-    const prevPayments = (STATE.payments || [])
+    const allPayments = STATE.orders
+        .filter(o => o.status === 'LUNAS' || o.status === 'APPROVED')
+        .map(o => ({
+            branch: o.branch,
+            date: o.paymentDate || o.date,
+            amount: o.total || 0
+        }));
+
+    const prevPayments = allPayments
         .filter(p => isBranchMatch(p.branch) && p.date < selectedDate)
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
+        .reduce((sum, p) => sum + p.amount, 0);
     
     const sisaTagihanLalu = prevSales - prevPayments;
-    const pembayaranHariIni = (STATE.payments || [])
+    const pembayaranHariIni = allPayments
         .filter(p => isBranchMatch(p.branch) && p.date === selectedDate)
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
+        .reduce((sum, p) => sum + p.amount, 0);
 
     const totalTagihan = sisaTagihanLalu + totalJualKios;
     const sisaTagihanHariIni = totalTagihan - pembayaranHariIni;
