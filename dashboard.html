@@ -145,6 +145,25 @@
 
     <!-- Templates for different sections (Hidden) -->
     <template id="tpl-dashboard">
+        <div class="dashboard-filter-card">
+            <div class="filter-group">
+                <div class="filter-item">
+                    <label>MULAI TANGGAL</label>
+                    <input type="date" id="dash-start-date" class="filter-input">
+                </div>
+                <div class="filter-item">
+                    <label>SAMPAI TANGGAL</label>
+                    <input type="date" id="dash-end-date" class="filter-input">
+                </div>
+                <button class="filter-btn" onclick="updateDashboardRange()">
+                    <i data-lucide="refresh-cw"></i> UPDATE DATA
+                </button>
+            </div>
+            <div id="range-label-display" class="range-display">
+                Memuat data...
+            </div>
+        </div>
+
         <div class="stats-grid" id="dashboard-stats-grid">
             <!-- Stats will be injected here -->
         </div>

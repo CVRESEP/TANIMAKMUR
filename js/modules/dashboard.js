@@ -1,15 +1,68 @@
 // Main Dashboard View Module
+function getDefaultWeekRange() {
+    const now = new Date();
+    const day = now.getDay(); // 0 (Sun) to 6 (Sat)
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+    
+    const monday = new Date(now.setDate(diff));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    return {
+        start: monday.toISOString().split('T')[0],
+        end: sunday.toISOString().split('T')[0]
+    };
+}
+
+function updateDashboardRange() {
+    const startInput = document.getElementById('dash-start-date');
+    const endInput = document.getElementById('dash-end-date');
+    
+    if (startInput && endInput) {
+        if (!STATE.dashboardRange) STATE.dashboardRange = {};
+        STATE.dashboardRange.start = startInput.value;
+        STATE.dashboardRange.end = endInput.value;
+        renderDashboard();
+    }
+}
+
 function renderDashboard() {
     const statsGrid = document.getElementById('dashboard-stats-grid');
     const activityTitle = document.getElementById('dashboard-activity-title');
     const activityHead = document.getElementById('dashboard-activity-head');
     const activityBody = document.getElementById('recent-activity-body');
     
+    // Date Range Setup
+    if (!STATE.dashboardRange) {
+        STATE.dashboardRange = getDefaultWeekRange();
+    }
+
+    const startInput = document.getElementById('dash-start-date');
+    const endInput = document.getElementById('dash-end-date');
+    const rangeDisplay = document.getElementById('range-label-display');
+
+    if (startInput && endInput) {
+        startInput.value = STATE.dashboardRange.start;
+        endInput.value = STATE.dashboardRange.end;
+    }
+    
+    if (rangeDisplay) {
+        rangeDisplay.textContent = `${formatDate(STATE.dashboardRange.start)} - ${formatDate(STATE.dashboardRange.end)}`;
+    }
+
+    const { start, end } = STATE.dashboardRange;
+
+    // Helper to check if date within range
+    const isWithinRange = (dateStr) => {
+        if (!dateStr) return false;
+        return dateStr >= start && dateStr <= end;
+    };
+
     if (!statsGrid || !activityBody) return;
 
     if (STATE.currentUser.role === 'KIOS') {
         // Kiosk Dashboard Logic
-        const myOrders = STATE.orders.filter(o => o.kiosk === STATE.currentUser.name);
+        const myOrders = STATE.orders.filter(o => o.kiosk === STATE.currentUser.name && isWithinRange(o.date));
         const totalOrdered = myOrders.reduce((sum, o) => sum + (parseFloat(o.qty) || 0), 0);
         const pendingCount = myOrders.filter(o => o.status === 'MENUNGGU PERSETUJUAN').length;
         const totalPaid = myOrders.filter(o => o.status === 'LUNAS').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
@@ -50,17 +103,17 @@ function renderDashboard() {
                 <td>${o.qty} Ton</td>
                 <td><span class="status-text ${o.status === 'LUNAS' ? 'lunas' : (o.status === 'MENUNGGU PERSETUJUAN' ? 'waiting' : 'process')}">${o.status}</span></td>
             </tr>
-        `).join('') || `<tr><td colspan="5" align="center" style="padding:40px; color:var(--text-dim);">Belum ada riwayat pesanan</td></tr>`;
+        `).join('') || `<tr><td colspan="5" align="center" style="padding:40px; color:var(--text-dim);">Belum ada riwayat pesanan di periode ini</td></tr>`;
 
     } else {
         // Distributor Dashboard Logic
         const user = STATE.currentUser;
         const isExecutive = ['OWNER', 'MANAJER'].includes(user.role.toUpperCase());
         
-        const penebusanData = isExecutive ? (STATE.penebusan || []) : getFilteredData('penebusan');
-        const ordersData = isExecutive ? (STATE.orders || []) : getFilteredData('orders');
-        const penyaluranData = isExecutive ? (STATE.penyaluran || []) : getFilteredData('penyaluran');
-        const pengeluaranFull = STATE.pengeluaran || [];
+        const penebusanData = (isExecutive ? (STATE.penebusan || []) : getFilteredData('penebusan')).filter(p => isWithinRange(p.date));
+        const ordersData = (isExecutive ? (STATE.orders || []) : getFilteredData('orders')).filter(o => isWithinRange(o.date));
+        const penyaluranData = (isExecutive ? (STATE.penyaluran || []) : getFilteredData('penyaluran')).filter(p => isWithinRange(p.date));
+        const pengeluaranFull = (STATE.pengeluaran || []).filter(ex => isWithinRange(ex.date));
         
         // 1. Get Product Categories mapping
         const productCategoryMap = {};
@@ -98,16 +151,21 @@ function renderDashboard() {
             }
         });
 
+        // Sisa DO filtering is tricky because Sisa DO is cumulative usually.
+        // However, if the user picks a range, they might expect stats for that range.
+        // For "SISA STOK DO", we use CURRENT stock regardless of range, 
+        // OR we filter the transactions and calculate stock based on history.
+        // Usually, a dashboard "Sisa DO" card shows REALTIME stock.
+        // But "TERKIRIM" and finance should definitely be within range.
+        
         penebusanData.forEach(p => {
             const prodName = (p.product || '').toUpperCase();
             const doNum = (p.do || '').toString().trim().toUpperCase();
             if (!doNum || !prodName) return;
 
-            // Find match by code or name+branch filtering
             const targetProduct = (STATE.products || []).find(it => it.code === p.product || it.name.toUpperCase() === prodName);
             const key = targetProduct ? targetProduct.code : prodName;
 
-            // Ensure stats exist
             if (!productStats[key]) {
                 productStats[key] = { 
                     name: targetProduct ? `${targetProduct.name} (${targetProduct.branch})` : prodName,
@@ -133,19 +191,16 @@ function renderDashboard() {
         // 3. Group by Category
         const categories = {};
         Object.values(productStats).forEach((data) => {
-            // Kita ingin semua produk muncul meskipun stoknya 0 agar nama produk terlihat
             if (!categories[data.category]) categories[data.category] = [];
             categories[data.category].push(data);
         });
 
         // 4. Operational Stats
-        const today = new Date().toISOString().split('T')[0];
         const pendingOrders = ordersData.filter(o => o.status === 'MENUNGGU PERSETUJUAN').length;
         
-        // Group today's penyaluran by product and branch
-        const todayPenyaluranData = penyaluranData.filter(p => p.date === today && p.status !== 'MENUNGGU PENGIRIMAN');
+        // Group penyaluran in range by product and branch
+        const filteredPenyaluranData = penyaluranData.filter(p => p.status !== 'MENUNGGU PENGIRIMAN');
         
-        // 1. Dapatkan semua nama produk unik dari semua cabang untuk disatukan
         const byproductBranch = {};
         const branches = STATE.settings?.branches || ['MAGETAN', 'SRAGEN'];
         const allProductNames = [...new Set((STATE.products || []).map(p => (p.name || '').toUpperCase().trim()))].filter(n => n);
@@ -155,8 +210,7 @@ function renderDashboard() {
             branches.forEach(b => byproductBranch[name][b] = 0);
         });
 
-        // 2. Masukkan data penyaluran hari ini
-        todayPenyaluranData.forEach(p => {
+        filteredPenyaluranData.forEach(p => {
             const prodRaw = (p.product || '').toUpperCase().trim();
             const branch = (p.branch || p.kabupaten || '').trim().toUpperCase();
             
@@ -181,48 +235,59 @@ function renderDashboard() {
                 <div style="display: grid; grid-template-columns: repeat(${branches.length}, 1fr); gap: 10px; font-size: 0.55rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase;">
                     ${branches.map(b => `<span>${b}</span>`).join('')}
                 </div>
-                ${Object.entries(byproductBranch).map(([name, data]) => `
-                    <div style="display: grid; grid-template-columns: repeat(${branches.length}, 1fr); gap: 10px; align-items: center; background: rgba(0,0,0,0.02); padding: 6px 10px; border-radius: 4px;">
-                        ${branches.map(b => `
-                            <div style="font-size: 0.75rem; font-weight: 600;">
-                                <div style="font-size: 0.5rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
-                                <span style="color: var(--primary);">${(data[b] || 0).toFixed(1)}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `).join('')}
+                ${Object.entries(byproductBranch).map(([name, data]) => {
+                    const hasData = Object.values(data).some(v => v > 0);
+                    if (!hasData) return '';
+                    return `
+                        <div style="display: grid; grid-template-columns: repeat(${branches.length}, 1fr); gap: 10px; align-items: center; background: rgba(0,0,0,0.02); padding: 6px 10px; border-radius: 4px;">
+                            ${branches.map(b => `
+                                <div style="font-size: 0.75rem; font-weight: 600;">
+                                    <div style="font-size: 0.5rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
+                                    <span style="color: var(--primary);">${(data[b] || 0).toFixed(1)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }).join('')}
             </div>
         `;
 
-        const totalPenyaluranQty = todayPenyaluranData.reduce((acc, curr) => acc + (parseFloat(curr.qty) || 0), 0);
+        const totalPenyaluranQty = filteredPenyaluranData.reduce((acc, curr) => acc + (parseFloat(curr.qty) || 0), 0);
         
-        const kasUmumData = isExecutive ? (STATE.kas_umum || []) : getFilteredData('kas_umum');
-        const kasAngkutData = isExecutive ? (STATE.kas_angkutan || []) : getFilteredData('kas_angkutan');
-        const saldoUmum = kasUmumData.reduce((sum, item) => sum + (parseFloat(item.masuk) || 0) - (parseFloat(item.keluar) || 0), 0);
-        const keluarUmum = kasUmumData.reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
+        const kasUmumRange = (isExecutive ? (STATE.kas_umum || []) : getFilteredData('kas_umum')).filter(k => isWithinRange(k.date));
+        const kasAngkutRange = (isExecutive ? (STATE.kas_angkutan || []) : getFilteredData('kas_angkutan')).filter(k => isWithinRange(k.date));
         
-        const saldoAngkut = kasAngkutData.reduce((sum, item) => sum + (parseFloat(item.masuk) || 0) - (parseFloat(item.keluar) || 0), 0);
-        const keluarAngkut = kasAngkutData.reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
+        // Saldo is cumulative, but for a "Range" filter, maybe show "Starting Saldo", "Changes", "Ending Saldo"?
+        // But usually "SALDO" in dashboard means current absolute balance.
+        // Let's calculate balance based on ALL time for "SALDO", but "TOTAL KELUAR" should be range.
+        const kasUmumFull = isExecutive ? (STATE.kas_umum || []) : getFilteredData('kas_umum');
+        const kasAngkutFull = isExecutive ? (STATE.kas_angkutan || []) : getFilteredData('kas_angkutan');
+        
+        const saldoUmum = kasUmumFull.reduce((sum, item) => sum + (parseFloat(item.masuk) || 0) - (parseFloat(item.keluar) || 0), 0);
+        const keluarUmumRange = kasUmumRange.reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
+        
+        const saldoAngkut = kasAngkutFull.reduce((sum, item) => sum + (parseFloat(item.masuk) || 0) - (parseFloat(item.keluar) || 0), 0);
+        const keluarAngkutRange = kasAngkutRange.reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
 
         const financeStats = [
             { title: 'SALDO KAS UMUM', value: formatCurrency(saldoUmum), color: '#10b981', icon: 'wallet' },
-            { title: 'TOTAL KELUAR UMUM', value: formatCurrency(keluarUmum), color: '#f59e0b', icon: 'minus-circle' },
+            { title: 'PENGELUARAN UMUM', value: formatCurrency(keluarUmumRange), color: '#f59e0b', icon: 'minus-circle' },
             { title: 'SALDO KAS ANGKUTAN', value: formatCurrency(saldoAngkut), color: '#0ea5e9', icon: 'truck' },
-            { title: 'TOTAL KELUAR ANGKUTAN', value: formatCurrency(keluarAngkut), color: '#ef4444', icon: 'minus-circle' }
+            { title: 'PENGELUARAN ANGKUTAN', value: formatCurrency(keluarAngkutRange), color: '#ef4444', icon: 'minus-circle' }
         ];
 
         const operationalStats = [
             { 
-                title: 'TERKIRIM HARI INI', 
+                title: 'TOTAL TERKIRIM', 
                 value: `<div style="font-size: 1.2rem;">${totalPenyaluranQty.toFixed(1)} TON</div>`, 
                 extra: `<div style="margin-top: 8px;">${penyaluranBreakdown}</div>`,
                 color: '#8b5cf6', 
                 icon: 'send' 
             },
-            { title: 'PESANAN MASUK', value: `${pendingOrders} PENDING`, color: '#f59e0b', icon: 'clipboard-list' }
+            { title: 'PESANAN PERIODE INI', value: `${ordersData.length} TOTAL`, color: '#f59e0b', icon: 'clipboard-list' }
         ];
 
-        // Update HTML generation to support 'extra' content
+        // Update HTML generation
         let dashboardHtml = `
             <!-- Keuangan Section -->
             <div class="dashboard-section-header">
@@ -266,7 +331,7 @@ function renderDashboard() {
             </div>
         `;
 
-        // 3. Process products for Sisa DO (Grouped by Name)
+        // SISA DO calculation (Using full data for real current stock)
         const groupedByProduct = {};
         (STATE.products || []).forEach(p => {
             const name = p.name.toUpperCase().trim();
@@ -295,12 +360,11 @@ function renderDashboard() {
 
         const allSisaProducts = Object.values(groupedByProduct);
 
-        // Add Section for SISA DO
         if (allSisaProducts.length > 0) {
             dashboardHtml += `
                 <div class="dashboard-section-header">
                     <i data-lucide="package" style="width: 20px; color: var(--primary);"></i>
-                    <h3>SISA STOK DO (PER PRODUK)</h3>
+                    <h3>SISA STOK DO SAAT INI</h3>
                     <div class="line"></div>
                 </div>
                 <div class="section-grid">
@@ -325,23 +389,11 @@ function renderDashboard() {
                     `).join('')}
                 </div>
             `;
-        } else {
-            dashboardHtml += `
-                <div class="dashboard-section-header">
-                    <i data-lucide="alert-circle" style="width: 20px; color: var(--text-dim);"></i>
-                    <h3>SISA STOK DO</h3>
-                    <div class="line"></div>
-                </div>
-                <div style="padding: 20px; text-align: center; color: var(--text-dim); background: white; margin: 0 20px 20px; border-radius: 8px; border: 1px dashed var(--border);">
-                    <i data-lucide="database" style="width: 32px; height: 32px; margin-bottom: 8px; opacity: 0.5;"></i>
-                    <p style="font-size: 0.9rem;">Belum ada data Sisa DO yang tersedia.</p>
-                </div>
-            `;
         }
 
         statsGrid.innerHTML = dashboardHtml;
 
-        activityTitle.textContent = 'Aktivitas Penyaluran Terbaru';
+        activityTitle.textContent = 'Aktivitas Penyaluran Periode Ini';
         activityHead.innerHTML = `
             <tr>
                 <th>ID PYL</th>
@@ -361,7 +413,7 @@ function renderDashboard() {
                 <td>${p.driver} (${p.plat})</td>
                 <td><span class="status-text ${p.status === 'DITERIMA' ? 'lunas' : 'process'}">${p.status}</span></td>
             </tr>
-        `).join('') || `<tr><td colspan="6" align="center" style="padding:40px; color:var(--text-dim);">Belum ada aktivitas penyaluran hari ini</td></tr>`;
+        `).join('') || `<tr><td colspan="6" align="center" style="padding:40px; color:var(--text-dim);">Tidak ada aktivitas di periode ini</td></tr>`;
     }
     
     if (typeof lucide !== 'undefined') lucide.createIcons();
