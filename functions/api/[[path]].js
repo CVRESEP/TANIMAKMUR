@@ -133,5 +133,49 @@ export async function onRequest(context) {
         }
     }
 
+    // ── NOTIFICATIONS ────────────────────────────────────────────────────────
+    if (path.endsWith('/api/send-wa') && method === 'POST') {
+        try {
+            const { to, message } = await request.json();
+            const rs = await queryTurso([{ q: "SELECT value FROM settings WHERE key = 'settings'" }]);
+            if (!rs[0] || !rs[0].rows || !rs[0].rows.length) throw new Error('Settings not found');
+            
+            const settingsStr = rs[0].rows[0][0].value;
+            const settings = JSON.parse(settingsStr);
+            
+            const response = await fetch('https://api.fonnte.com/send', {
+                method: 'POST',
+                headers: { 'Authorization': settings.wa_gateway_token || '', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target: to, message })
+            });
+            const result = await response.json();
+            return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
+        } catch (e) {
+            return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+        }
+    }
+
+    if (path.endsWith('/api/send-tg') && method === 'POST') {
+        try {
+            const { chat_id, message } = await request.json();
+            const rs = await queryTurso([{ q: "SELECT value FROM settings WHERE key = 'settings'" }]);
+            if (!rs[0] || !rs[0].rows || !rs[0].rows.length) throw new Error('Settings not found');
+            
+            const settingsStr = rs[0].rows[0][0].value;
+            const settings = JSON.parse(settingsStr);
+            
+            const cleanId = String(chat_id).replace(/[^\d-]/g, '').trim();
+            const response = await fetch(`https://api.telegram.org/bot${settings.tg_bot_token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: cleanId, text: message })
+            });
+            const result = await response.json();
+            return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
+        } catch (e) {
+            return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+        }
+    }
+
     return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
 }

@@ -40,7 +40,10 @@ function renderSettings() {
         { id: 'payments', name: 'Pembayaran' },
         { id: 'kiosks', name: 'Daftar Kios' },
         { id: 'orders_kiosk', name: 'Pesanan Saya (Halaman Kios)' },
-        { id: 'reports', name: 'Laporan' },
+        { id: 'kas_angkutan', name: 'Kas Angkutan' },
+        { id: 'kas_umum', name: 'Kas Umum' },
+        { id: 'reports', name: 'Laporan Ringkas' },
+        { id: 'daily-report', name: 'Laporan Harian' },
         { id: 'users', name: 'Kelola Akun' }
     ];
 

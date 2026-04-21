@@ -156,8 +156,8 @@ function saveOrder(e) {
     
     // Notifikasi WhatsApp & Telegram ke Admin Cabang (Strict Branch/Kabupaten)
     const branchAdmin = STATE.users.find(u => 
-        u.branch === kioskBranch && 
-        ['ADMIN', 'MANAJER', 'OWNER'].includes(u.role) && 
+        (u.branch === kioskBranch || u.branch === 'ALL') && 
+        ['ADMIN', 'MANAJER', 'OWNER'].includes((u.role || '').toUpperCase()) && 
         (u.phone || u.tg_chat_id)
     );
     
