@@ -95,7 +95,13 @@
                 <li class="nav-item">
                     <a href="#reports" class="nav-link" data-page="reports">
                         <i data-lucide="file-clock"></i>
-                        <span>LAPORAN</span>
+                        <span>LAPORAN RINGKAS</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#daily-report" class="nav-link" data-page="daily-report">
+                        <i data-lucide="clipboard-list"></i>
+                        <span>LAPORAN HARIAN</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -817,6 +823,70 @@
                         <i data-lucide="download"></i> EXCEL
                     </button>
                 </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-daily-report">
+        <div class="header-actions" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <h2 class="page-title">Laporan Harian</h2>
+                <p style="font-size: 0.85rem; color: var(--text-dim);">Pilih tanggal dan kabupaten laporan yang ingin Anda lihat.</p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div class="filter-item" style="margin: 0; position: relative;">
+                    <i data-lucide="calendar" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; color: var(--text-dim);"></i>
+                    <input type="date" id="dr-date" class="filter-input" style="padding-left: 35px; min-width: 180px;" onchange="renderDailyReport()">
+                </div>
+                <select id="dr-branch" class="filter-input" style="min-width: 120px;" onchange="renderDailyReport()">
+                    <option value="ALL">Semua Wilayah</option>
+                    <option value="MAGETAN">MAGETAN</option>
+                    <option value="SRAGEN">SRAGEN</option>
+                </select>
+                <button class="action-btn primary" onclick="renderDailyReport()">Tampilkan Data</button>
+                <div class="dropdown">
+                    <button class="action-btn secondary dropdown-toggle" onclick="toggleDropdown(event)">
+                        EXPORT <i data-lucide="chevron-down"></i>
+                    </button>
+                    <div class="dropdown-content">
+                        <a href="#" onclick="exportDailyReport('excel')"><i data-lucide="file-spreadsheet"></i> EXCEL</a>
+                        <a href="#" onclick="exportDailyReport('png')"><i data-lucide="image"></i> PNG / GAMBAR</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-0 overflow-hidden" style="margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+            <div class="table-container">
+                <table id="daily-report-table">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; height: 50px;">
+                            <th style="font-weight: 700; color: #475569; padding: 0 15px; font-size: 0.75rem;">PRODUK</th>
+                            <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">SISA LALU</th>
+                            <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">PENYALURAN</th>
+                            <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">PENEBUSAN TUNAI</th>
+                            <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">STOK AKHIR</th>
+                            <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">HARGA TEBUS</th>
+                            <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">HARGA STOK</th>
+                            <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">HARGA JUAL</th>
+                            <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">JUAL KE KIOS</th>
+                            <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">PENEBUSAN</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dr-table-body">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <div class="card p-0 overflow-hidden" style="width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                <table class="summary-table" style="width: 100%; font-size: 0.9rem;">
+                    <tbody id="dr-summary-body">
+                        <!-- Summary values will be injected here -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </template>

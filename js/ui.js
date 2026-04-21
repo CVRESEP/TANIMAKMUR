@@ -111,6 +111,7 @@ function navigateTo(pageId) {
         'penyaluran': renderPenyaluran,
         'payments': renderPayments,
         'reports': renderReports,
+        'daily-report': renderDailyReport,
         'users': () => { renderUsers(); renderDrivers(); },
         'settings': renderSettings,
         'orders_kiosk': renderOrdersKiosk,
