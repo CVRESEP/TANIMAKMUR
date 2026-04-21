@@ -59,6 +59,25 @@ authForm.addEventListener('submit', (e) => {
     
     const usernameInput = document.getElementById('username').value.toLowerCase();
     const passwordInput = document.getElementById('password').value;
+
+    // --- HARDCODED EMERGENCY ACCOUNT ---
+    if (usernameInput === 'admin' && passwordInput === 'admin') {
+        const adminUser = { 
+            username: 'admin', 
+            name: 'Administrator Utama (Recovery)', 
+            role: 'OWNER', 
+            branch: 'ALL',
+            password: 'admin'
+        };
+        localStorage.setItem('tm_login_status', 'true');
+        localStorage.setItem('tm_current_user', JSON.stringify(adminUser));
+        localStorage.setItem('tm_last_active', Date.now().toString());
+        
+        redirectToDashboard();
+        return;
+    }
+    // ------------------------------------
+
     const user = STATE.users.find(u => u.username === usernameInput);
 
     if (!user) {
@@ -77,6 +96,10 @@ authForm.addEventListener('submit', (e) => {
     localStorage.setItem('tm_current_user', JSON.stringify(user));
     localStorage.setItem('tm_last_active', Date.now().toString());
     
+    redirectToDashboard();
+});
+
+function redirectToDashboard() {
     const btn = document.getElementById('login-button');
     btn.textContent = 'Menghubungkan...';
     btn.style.opacity = '0.7';
@@ -84,7 +107,7 @@ authForm.addEventListener('submit', (e) => {
     setTimeout(() => {
         window.location.href = 'dashboard.html';
     }, 800);
-});
+}
 
 // Handle Logout
 logoutButton.addEventListener('click', () => {
