@@ -109,7 +109,7 @@ function openProsesPenyaluranModal(pylId) {
                 <label>Pilih Sopir</label>
                 <select name="driver" required>
                     <option value="" disabled selected>Pilih Sopir...</option>
-                    ${STATE.drivers.map(d => `<option value="${d.name}|${d.plat}">${d.name} (${d.plat})</option>`).join('')}
+                    ${getFilteredData('drivers').map(d => `<option value="${d.name}|${d.plat}">${d.name} (${d.plat})</option>`).join('')}
                 </select>
             </div>
 

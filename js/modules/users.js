@@ -281,7 +281,7 @@ function saveDriver(e) {
     };
 
     STATE.drivers.push(newDriver);
-    saveState();
+    saveState(true);
     closeModal();
     renderDrivers();
     openSuccessModal('SOPIR TERDAFTAR', `Sopir <strong>${newDriver.name}</strong> berhasil ditambahkan untuk cabang <strong>${newDriver.branch}</strong>.`);
@@ -311,27 +311,23 @@ function openEditDriverModal(id) {
 function updateDriver(e, id) {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const idx = STATE.drivers.findIndex(d => d.id === id);
-    
-    if (idx !== -1) {
-        STATE.drivers[idx] = {
-            ...STATE.drivers[idx],
-            name: fd.get('name'),
-            plat: fd.get('plat').toUpperCase(),
-            branch: fd.get('branch')
-        };
-        saveState();
+    const drv = STATE.drivers.find(d => d.id === id);
+    if (drv) {
+        drv.name = fd.get('name');
+        drv.plat = fd.get('plat').toUpperCase();
+        drv.branch = fd.get('branch');
+        saveState(true);
         closeModal();
         renderDrivers();
-        openSuccessModal('DATA DIPERBARUI', 'Data sopir berhasil diperbarui.');
+        openSuccessModal('PERUBAHAN DISIMPAN', `Data sopir berhasil diperbarui.`);
     }
 }
 
 function deleteDriver(id) {
     if (confirm('Hapus master data sopir ini?')) {
         STATE.drivers = STATE.drivers.filter(d => d.id !== id);
-        saveState();
+        saveState(true);
         renderDrivers();
-        openSuccessModal('DATA DIHAPUS', 'Data sopir berhasil dihapus dari master.');
+        openSuccessModal('SOPIR DIHAPUS', `Data sopir berhasil dihapus dari sistem.`);
     }
 }
