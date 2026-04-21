@@ -8,12 +8,12 @@ function renderOrdersKiosk() {
     const data = paginateData(myOrders, 'orders_kiosk');
 
     tbody.innerHTML = data.map(o => {
-        const statusClass = 
+        const statusClass =
             o.status === 'MENUNGGU PERSETUJUAN' ? 'waiting' :
-            o.status === 'LUNAS' ? 'lunas' :
-            o.status === 'DITOLAK' ? 'rejected' :
-            o.status === 'MENUNGGU KONFIRMASI PEMBAYARAN' || o.status === 'MENUNGGU PEMBAYARAN' ? 'process' :
-            o.status.toLowerCase().replace(/ /g, '-');
+                o.status === 'LUNAS' ? 'lunas' :
+                    o.status === 'DITOLAK' ? 'rejected' :
+                        o.status === 'MENUNGGU KONFIRMASI PEMBAYARAN' || o.status === 'MENUNGGU PEMBAYARAN' ? 'process' :
+                            o.status.toLowerCase().replace(/ /g, '-');
 
         return `
             <tr>
@@ -46,7 +46,7 @@ function renderOrdersKiosk() {
             </tr>
         `;
     }).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 40px; color: var(--text-dim);">Belum ada riwayat pesanan</td></tr>`;
-    
+
     lucide.createIcons();
 }
 
@@ -54,7 +54,7 @@ function openAddOrderModal() {
     const currentUser = STATE.currentUser;
     const isAdminRole = ['ADMIN', 'OWNER', 'MANAGER', 'CABANG'].includes(currentUser.role);
     const initialBranch = isAdminRole ? '' : currentUser.branch;
-    
+
     let kioskSelectionHtml = '';
     if (isAdminRole) {
         const availableKiosks = STATE.users.filter(u => {
@@ -65,7 +65,7 @@ function openAddOrderModal() {
             }
             return u.branch === currentUser.branch;
         });
-        
+
         kioskSelectionHtml = `
             <div class="form-group">
                 <label>Pilih Kios Pemesan</label>
@@ -78,8 +78,8 @@ function openAddOrderModal() {
     }
 
     // Initial product filtering based on current user branch (if Kios)
-    const filteredProducts = initialBranch ? 
-        STATE.products.filter(p => p.branch === initialBranch) : 
+    const filteredProducts = initialBranch ?
+        STATE.products.filter(p => p.branch === initialBranch) :
         []; // Empty for admin until kiosk is selected
 
     const content = `
@@ -103,14 +103,14 @@ function openAddOrderModal() {
 }
 
 // Global helper for the onchange event
-window.refreshOrderProducts = function(select) {
+window.refreshOrderProducts = function (select) {
     const val = select.value;
     const productSelect = document.getElementById('order-product-select');
     if (!val || !productSelect) return;
-    
+
     const branch = val.split('|')[1];
     const filtered = STATE.products.filter(p => p.branch === branch);
-    
+
     productSelect.disabled = false;
     productSelect.innerHTML = `
         <option value="" disabled selected>Pilih Produk...</option>
@@ -128,7 +128,7 @@ function saveOrder(e) {
     // Determine target kiosk and branch
     let kioskName = STATE.currentUser.name;
     let kioskBranch = STATE.currentUser.branch;
-    
+
     const targetKioskData = fd.get('target_kiosk');
     if (targetKioskData) {
         const parts = targetKioskData.split('|');
@@ -142,7 +142,7 @@ function saveOrder(e) {
         product: product.name,
         qty: qty,
         price: product.sellPrice || product.price,
-        total: qty * (product.sellPrice || product.price), 
+        total: qty * (product.sellPrice || product.price),
         branch: kioskBranch,
         kiosk: kioskName,
         status: 'MENUNGGU PERSETUJUAN'
@@ -153,23 +153,23 @@ function saveOrder(e) {
     closeModal();
     renderOrdersKiosk();
     if (typeof renderDashboard === 'function') renderDashboard();
-    
+
     // Notifikasi WhatsApp & Telegram ke Admin Cabang (Strict Branch/Kabupaten)
-    const branchAdmin = STATE.users.find(u => 
-        (u.branch === kioskBranch || u.branch === 'ALL') && 
-        ['ADMIN', 'MANAJER', 'OWNER'].includes((u.role || '').toUpperCase()) && 
+    const branchAdmin = STATE.users.find(u =>
+        (u.branch === kioskBranch || u.branch === 'ALL') &&
+        ['ADMIN', 'MANAJER', 'OWNER'].includes((u.role || '').toUpperCase()) &&
         (u.phone || u.tg_chat_id)
     );
-    
+
     if (branchAdmin) {
         const waMsg = `*NOTIFIKASI PESANAN BARU*\n\n` +
-                      `Kios: *${kioskName}*\n` +
-                      `Cabang: *${kioskBranch}*\n` +
-                      `Produk: *${product.name}*\n` +
-                      `Jumlah: *${qty} Ton*\n` +
-                      `Status: MENUNGGU PERSETUJUAN\n\n` +
-                      `Mohon segera diproses di dashboard Tani Makmur.`;
-        
+            `Kios: *${kioskName}*\n` +
+            `Cabang: *${kioskBranch}*\n` +
+            `Produk: *${product.name}*\n` +
+            `Jumlah: *${qty} Ton*\n` +
+            `Status: MENUNGGU PERSETUJUAN\n\n` +
+            `Mohon segera diproses di tanimakmur.pages.dev`;
+
         sendAutoNotification(branchAdmin.phone, waMsg, 'Notifikasi Pesanan', branchAdmin.tg_chat_id);
     }
 
@@ -230,11 +230,11 @@ function renderApprovals() {
             `;
         }
 
-        const statusClass = 
+        const statusClass =
             o.status === 'MENUNGGU PERSETUJUAN' ? 'waiting' :
-            o.status === 'LUNAS' ? 'lunas' :
-            o.status === 'MENUNGGU KONFIRMASI PEMBAYARAN' || o.status === 'MENUNGGU PEMBAYARAN' ? 'process' :
-            o.status.toLowerCase().replace(/ /g, '-');
+                o.status === 'LUNAS' ? 'lunas' :
+                    o.status === 'MENUNGGU KONFIRMASI PEMBAYARAN' || o.status === 'MENUNGGU PEMBAYARAN' ? 'process' :
+                        o.status.toLowerCase().replace(/ /g, '-');
 
         return `
             <tr>
@@ -273,7 +273,7 @@ function renderApprovals() {
             </tr>
         `;
     }).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Tidak ada antrian persetujuan</td></tr>`;
-    
+
     lucide.createIcons();
 }
 
@@ -289,7 +289,7 @@ function saveApprovalDirectDispatch(e, orderId) {
         order.status = 'MENUNGGU PEMBAYARAN';
         order.assignedDO = entry.do;
         order.pengeluaran_id = outId;
-        
+
         // Custom ID Format: [NO DO]-[INCREMENT]
         const count = STATE.penyaluran.filter(p => p.do === entry.do).length;
         const pylId = `${entry.do}-${count + 1}`;
@@ -363,12 +363,12 @@ function confirmOrder(id, nextStatus) {
                     <select name="pengeluaran_id" required>
                         <option value="" disabled selected>Pilih DO...</option>
                         ${availableDOs.map(doEntry => {
-                            const totalShared = STATE.penyaluran
-                                .filter(item => item.pengeluaran_id === doEntry.id)
-                                .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
-                            const remaining = (parseFloat(doEntry.keluar) || 0) - totalShared;
-                            return `<option value="${doEntry.id}">${doEntry.do} - Sisa: ${remaining.toFixed(1)} Ton</option>`;
-                        }).join('')}
+            const totalShared = STATE.penyaluran
+                .filter(item => item.pengeluaran_id === doEntry.id)
+                .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+            const remaining = (parseFloat(doEntry.keluar) || 0) - totalShared;
+            return `<option value="${doEntry.id}">${doEntry.do} - Sisa: ${remaining.toFixed(1)} Ton</option>`;
+        }).join('')}
                     </select>
                 </div>
 
@@ -392,15 +392,15 @@ function deleteOrder(id) {
     if (confirm('Hapus pesanan ' + id + '? Data pengiriman & biaya angkutan terkait juga akan dihapus.')) {
         // Collect linked distribution IDs
         const linkedPylIds = STATE.penyaluran.filter(p => p.orderId === id).map(p => p.id);
-        
+
         STATE.orders = STATE.orders.filter(o => o.id !== id);
         STATE.penyaluran = STATE.penyaluran.filter(p => p.orderId !== id);
-        
+
         // Clear linked Kas Angkutan
         STATE.kas_angkutan = STATE.kas_angkutan.filter(k => !linkedPylIds.includes(k.noPyl));
-        
+
         saveState(true);
-        
+
         // Refresh appropriate view based on role
         if (STATE.currentUser.role === 'KIOS') {
             renderOrdersKiosk();
@@ -409,7 +409,7 @@ function deleteOrder(id) {
             renderPenyaluran();
             if (typeof renderKasAngkutan === 'function') renderKasAngkutan();
         }
-        
+
         if (typeof renderDashboard === 'function') renderDashboard();
         openSuccessModal('PESANAN DIHAPUS', `Pesanan <strong>${id}</strong> berhasil dihapus.`);
     }
