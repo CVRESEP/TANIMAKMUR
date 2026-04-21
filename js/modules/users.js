@@ -227,7 +227,6 @@ function deleteUser(username) {
     }
 }
 
-// Driver Management
 function renderDrivers() {
     const tbody = document.getElementById('drivers-table-body');
     if (!tbody) return;
@@ -235,14 +234,20 @@ function renderDrivers() {
     tbody.innerHTML = STATE.drivers.map(d => `
         <tr>
             <td><strong>${d.name}</strong></td>
-            <td>${d.plat}</td>
+            <td><code>${d.plat}</code></td>
+            <td><span class="badge ${d.branch?.toLowerCase() || 'magetan'}">${d.branch || 'MAGETAN'}</span></td>
             <td>
-                <button class="action-btn small t-icon" title="Hapus" onclick="deleteDriver('${d.id}')" style="color: #ff4d4d;">
-                    <i data-lucide="trash-2"></i>
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn small t-icon" title="Edit" onclick="openEditDriverModal('${d.id}')" style="color: var(--primary);">
+                        <i data-lucide="edit-3"></i>
+                    </button>
+                    <button class="action-btn small t-icon" title="Hapus" onclick="deleteDriver('${d.id}')" style="color: #ff4d4d;">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
             </td>
         </tr>
-    `).join('') || `<tr><td colspan="3" style="text-align:center; padding: 20px; color: var(--text-dim);">Belum ada sopir terdaftar</td></tr>`;
+    `).join('') || `<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-dim);">Belum ada sopir terdaftar</td></tr>`;
     
     lucide.createIcons();
 }
@@ -258,7 +263,8 @@ function openAddDriverModal() {
                 <label>Nomor Plat Kendaraan</label>
                 <input type="text" name="plat" placeholder="Contoh: AD 1234 XX" required>
             </div>
-            <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center;">DAFTARKAN SOPIR</button>
+            ${renderBranchSelector('branch', 'SRAGEN', 'Cabang Sopir', false)}
+            <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; margin-top: 10px;">DAFTARKAN SOPIR</button>
         </form>
     `;
     openModal('Tambah Sopir Master', content);
@@ -270,14 +276,55 @@ function saveDriver(e) {
     const newDriver = {
         id: 'DRV-' + Date.now(),
         name: fd.get('name'),
-        plat: fd.get('plat').toUpperCase()
+        plat: fd.get('plat').toUpperCase(),
+        branch: fd.get('branch')
     };
 
     STATE.drivers.push(newDriver);
     saveState();
     closeModal();
     renderDrivers();
-    openSuccessModal('SOPIR TERDAFTAR', `Sopir <strong>${newDriver.name}</strong> dengan plat <strong>${newDriver.plat}</strong> berhasil ditambahkan.`);
+    openSuccessModal('SOPIR TERDAFTAR', `Sopir <strong>${newDriver.name}</strong> berhasil ditambahkan untuk cabang <strong>${newDriver.branch}</strong>.`);
+}
+
+function openEditDriverModal(id) {
+    const d = STATE.drivers.find(drv => drv.id === id);
+    if (!d) return;
+
+    const content = `
+        <form onsubmit="updateDriver(event, '${id}')">
+            <div class="form-group">
+                <label>Nama Sopir</label>
+                <input type="text" name="name" value="${d.name}" required>
+            </div>
+            <div class="form-group">
+                <label>Nomor Plat Kendaraan</label>
+                <input type="text" name="plat" value="${d.plat}" required>
+            </div>
+            ${renderBranchSelector('branch', d.branch || 'SRAGEN', 'Cabang Sopir', false)}
+            <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; margin-top: 10px;">SIMPAN PERUBAHAN</button>
+        </form>
+    `;
+    openModal('Edit Master Sopir', content);
+}
+
+function updateDriver(e, id) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const idx = STATE.drivers.findIndex(d => d.id === id);
+    
+    if (idx !== -1) {
+        STATE.drivers[idx] = {
+            ...STATE.drivers[idx],
+            name: fd.get('name'),
+            plat: fd.get('plat').toUpperCase(),
+            branch: fd.get('branch')
+        };
+        saveState();
+        closeModal();
+        renderDrivers();
+        openSuccessModal('DATA DIPERBARUI', 'Data sopir berhasil diperbarui.');
+    }
 }
 
 function deleteDriver(id) {
