@@ -149,15 +149,12 @@
             <div class="filter-group">
                 <div class="filter-item">
                     <label>MULAI TANGGAL</label>
-                    <input type="date" id="dash-start-date" class="filter-input">
+                    <input type="date" id="dash-start-date" class="filter-input" onchange="updateDashboardRange()">
                 </div>
                 <div class="filter-item">
                     <label>SAMPAI TANGGAL</label>
-                    <input type="date" id="dash-end-date" class="filter-input">
+                    <input type="date" id="dash-end-date" class="filter-input" onchange="updateDashboardRange()">
                 </div>
-                <button class="filter-btn" onclick="updateDashboardRange()">
-                    <i data-lucide="refresh-cw"></i> UPDATE DATA
-                </button>
             </div>
             <div id="range-label-display" class="range-display">
                 Memuat data...
@@ -706,6 +703,120 @@
                         <!-- Data will be injected here -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </template>
+
+    <template id="tpl-reports">
+        <div class="header-actions" style="margin-bottom: 20px;">
+            <h2 class="page-title">Pusat Laporan & Analitik</h2>
+        </div>
+
+        <div class="dashboard-filter-card" style="margin-bottom: 30px;">
+            <div class="filter-group">
+                <div class="filter-item">
+                    <label>MULAI TANGGAL</label>
+                    <input type="date" id="rep-start-date" class="filter-input" onchange="renderReports()">
+                </div>
+                <div class="filter-item">
+                    <label>SAMPAI TANGGAL</label>
+                    <input type="date" id="rep-end-date" class="filter-input" onchange="renderReports()">
+                </div>
+            </div>
+            <div class="range-display" id="rep-range-display">
+                Memuat periode...
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <!-- Penebusan Report Card -->
+            <div class="card p-4">
+                <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 20px;">
+                    <div class="stat-icon" style="background: #dbeafe; color: #1d4ed8;">
+                        <i data-lucide="shopping-cart"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 700; margin: 0; color: var(--text-main);">Laporan Penebusan DO</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Rekap penebusan pupuk ke distributor utama.</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('penebusan')">
+                        <i data-lucide="download"></i> EXCEL
+                    </button>
+                </div>
+            </div>
+
+            <!-- Penyaluran Report Card -->
+            <div class="card p-4">
+                <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 20px;">
+                    <div class="stat-icon" style="background: #dcfce7; color: #15803d;">
+                        <i data-lucide="send"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 700; margin: 0; color: var(--text-main);">Laporan Penyaluran Kios</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Log pengiriman pupuk ke kios-kios pengecer.</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('penyaluran')">
+                        <i data-lucide="download"></i> EXCEL
+                    </button>
+                </div>
+            </div>
+
+            <!-- Kas Umum Report Card -->
+            <div class="card p-4">
+                <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 20px;">
+                    <div class="stat-icon" style="background: #fef3c7; color: #b45309;">
+                        <i data-lucide="wallet"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 700; margin: 0; color: var(--text-main);">Buku Kas Umum</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Rekapitulasi pemasukan dan pengeluaran kas kantor.</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('kas_umum')">
+                        <i data-lucide="download"></i> EXCEL
+                    </button>
+                </div>
+            </div>
+
+            <!-- Kas Angkutan Report Card -->
+            <div class="card p-4">
+                <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 20px;">
+                    <div class="stat-icon" style="background: #e0f2fe; color: #0369a1;">
+                        <i data-lucide="truck"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 700; margin: 0; color: var(--text-main);">Laporan Kas Angkutan</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Rincian biaya operasional sopir dan angkutan.</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('kas_angkutan')">
+                        <i data-lucide="download"></i> EXCEL
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stok Report Card -->
+            <div class="card p-4">
+                <div style="display: flex; align-items: start; gap: 15px; margin-bottom: 20px;">
+                    <div class="stat-icon" style="background: #f1f5f9; color: #64748b;">
+                        <i data-lucide="database"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 700; margin: 0; color: var(--text-main);">Laporan Stok DO</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">Posisi sisa stok DO (Gudang Supplier) saat ini.</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('stocks')">
+                        <i data-lucide="download"></i> EXCEL
+                    </button>
+                </div>
             </div>
         </div>
     </template>
