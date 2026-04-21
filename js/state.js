@@ -1,21 +1,15 @@
 /**
- * STATE MANAGEMENT - TANI MAKMUR
- * Mode Hybrid: SQLite lokal (via server) → fallback localStorage
- *
- * API Base : Auto-detect dari URL yang diakses (localhost atau IP LAN)
- * Database : data/tanimakmur.db (di PC server)
+ * STATE MANAGEMENT - TANI MAKMUR (CLOUD EDITION)
+ * Database : Turso Cloud DB via Cloudflare Workers
+ * Mode: Full Cloud (No localStorage fallback/migration)
  */
 
 const _hostname = window.location.hostname;
-const IS_CLOUD = _hostname.includes('pages.dev') || _hostname.includes('github.io') || _hostname.includes('vercel.app');
+const IS_CLOUD = true; 
+const API_BASE = '/api'; 
 
-// Jika di Cloud (internet), gunakan path relatif agar ditangkap oleh Cloudflare Functions.
-// Jika di localhost/IP, gunakan port 3737.
-const API_BASE = IS_CLOUD ? '/api' : `http://${_hostname}:3737/api`;
-const STORAGE_KEY = 'tm_state_v1';
-
-let DB_MODE = false;       // true = pakai SQLite server, false = localStorage
-let DB_SYNC_DIRTY = false; // ada perubahan yang belum disinkronkan
+let DB_MODE = true; 
+let DB_SYNC_DIRTY = false; 
 
 const DEFAULT_STATE = {
     currentUser: { username: 'admin', name: 'Administrator Utama', role: 'OWNER', branch: 'ALL', password: 'admin' },
@@ -55,75 +49,49 @@ const DEFAULT_STATE = {
     }
 };
 
-// ── STATE object (in-memory) ──────────────────────────────────────────────────
 let STATE = Object.assign({}, DEFAULT_STATE);
+let STATE_LOADED_FROM_SERVER = false; // Guard to prevent overwriting cloud data with defaults
 
-// ── Load stored state from localStorage ──────────────────────────────────────
-function loadFromLocalStorage() {
-    const stored = localStorage.getItem(STORAGE_KEY);
+// Session only in localStorage
+function loadSession() {
     const session = localStorage.getItem('tm_current_user');
-    if (stored) {
-        try {
-            const parsed = JSON.parse(stored);
-            Object.assign(STATE, parsed);
-        } catch (e) {}
-    }
     if (session) {
         try { STATE.currentUser = JSON.parse(session); } catch {}
     }
 }
 
-// ── Load from SQLite server / Cloud ──────────────────────────────────────────
 async function loadFromServer(silent = false) {
     if (DB_SYNC_DIRTY) return false; 
 
     try {
-        const r = await fetch(`${API_BASE}/load-state`, { signal: AbortSignal.timeout(5000) });
+        const r = await fetch(`${API_BASE}/load-state`, { signal: AbortSignal.timeout(10000) });
         if (!r.ok) throw new Error('Server error');
         const serverState = await r.json();
 
-        // Data arrays to sync
-        const keys = ['users', 'products', 'penebusan', 'pengeluaran', 'penyaluran', 'orders', 'drivers', 'permissions', 'rowLimits', 'activeBranchFilter', 'kas_angkutan', 'kas_umum', 'settings'];
-        let hasChanges = false;
-        
-        keys.forEach(key => {
-            if (serverState[key] !== undefined) {
-                const current = JSON.stringify(STATE[key]);
-                const cloud = JSON.stringify(serverState[key]);
-                if (current !== cloud) {
+        if (serverState && typeof serverState === 'object' && !serverState.error) {
+            const keys = ['users', 'products', 'penebusan', 'pengeluaran', 'penyaluran', 'orders', 'drivers', 'permissions', 'rowLimits', 'activeBranchFilter', 'kas_angkutan', 'kas_umum', 'settings'];
+            
+            keys.forEach(key => {
+                if (serverState[key] !== undefined) {
                     STATE[key] = serverState[key];
-                    hasChanges = true;
                 }
-            }
-        });
+            });
 
-        // Update current user session from local storage if needed
-        const session = localStorage.getItem('tm_current_user');
-        if (session) { try { STATE.currentUser = JSON.parse(session); } catch {} }
-
-        DB_MODE = true;
-        showDatabaseBadge(true);
-        
-        if (hasChanges) {
-            if (!silent) console.log('%c[TM DB] Data updated from Cloud. Refreshing UI...', 'color:#0369a1; font-weight:bold');
-            const hash = window.location.hash.replace('#', '') || 'dashboard';
-            if (typeof navigateTo === 'function') navigateTo(hash);
+            loadSession(); // Re-apply session over loaded state
+            STATE_LOADED_FROM_SERVER = true; // IMPORTANT: Data is now safe to sync back
+            showDatabaseBadge(true);
+            return true;
         }
-
-        return true;
     } catch (e) {
         if (!silent) {
-            DB_MODE = false;
+            console.warn('[TM CLOUD] Connection error:', e.message);
             showDatabaseBadge(false);
-            console.warn('[TM DB] Connection error:', e.message);
         }
-        return false;
     }
+    return false;
 }
 
-// ── UI Badge: show current storage mode in header ─────────────────────────────
-function showDatabaseBadge(isServer) {
-    // Remove old badge if exists
+function showDatabaseBadge(isOnline) {
     const old = document.getElementById('db-mode-badge');
     if (old) old.remove();
 
@@ -135,39 +103,21 @@ function showDatabaseBadge(isServer) {
         padding: 8px 14px; border-radius: 999px;
         font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px;
         box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-        cursor: pointer; transition: all 0.2s;
-        ${isServer
-            ? 'background: #15803d; color: #fff;'
-            : 'background: #d97706; color: #fff;'
-        }
+        cursor: default;
+        ${isOnline ? 'background: #0369a1; color: #fff;' : 'background: #ef4444; color: #fff;'}
     `;
-    badge.innerHTML = IS_CLOUD
-        ? '☁️ Cloud Sync — Data Tersimpan di Turso'
-        : (isServer
-            ? '🗄️ SQLite Lokal — Data Aman di PC'
-            : '⚠️ localStorage — Jalankan server.js');
+    badge.innerHTML = isOnline 
+        ? '☁️ Cloud Connected — Turso Sync Aktif' 
+        : '⚠️ Terputus — Periksa Koneksi Internet';
     
-    badge.style.background = IS_CLOUD ? '#0369a1' : (isServer ? '#15803d' : '#d97706');
-    
-    badge.onclick = () => {
-        if (!isServer && !IS_CLOUD) window.open('/migrate.html', '_blank');
-    };
-    badge.title = IS_CLOUD 
-        ? 'Data terhubung langsung ke Turso Cloud DB'
-        : (isServer ? 'Database tersimpan di PC via SQLite' : 'Klik untuk buka halaman migrasi');
     document.body.appendChild(badge);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SAVE STATE
-// ─────────────────────────────────────────────────────────────────────────────
 function saveState() {
-    // 1. Local backup
-    const persistState = Object.assign({}, STATE);
-    delete persistState.currentUser;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(persistState));
-
-    // 2. Immediate push to Cloud if online
+    // Session is the only thing we keep in localStorage
+    localStorage.setItem('tm_current_user', JSON.stringify(STATE.currentUser));
+    
+    // Sync other data to server
     syncToServer();
 
     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
@@ -180,6 +130,10 @@ function syncToServer(immediate = false) {
     
     const performSync = async () => {
         if (!DB_SYNC_DIRTY) return;
+        if (!STATE_LOADED_FROM_SERVER) {
+            console.warn('[TM CLOUD] Sync ditunda: Data belum termuat sempurna dari server.');
+            return;
+        }
         try {
             const payload = {
                 users: STATE.users, products: STATE.products, penebusan: STATE.penebusan,
@@ -188,7 +142,7 @@ function syncToServer(immediate = false) {
                 permissions: STATE.permissions, rowLimits: STATE.rowLimits,
                 activeBranchFilter: STATE.activeBranchFilter,
                 kas_angkutan: STATE.kas_angkutan, kas_umum: STATE.kas_umum,
-                suppliers: STATE.suppliers, settings: STATE.settings
+                settings: STATE.settings
             };
             
             const r = await fetch(`${API_BASE}/sync`, {
@@ -200,119 +154,46 @@ function syncToServer(immediate = false) {
             
             if (r.ok) {
                 DB_SYNC_DIRTY = false;
-                DB_MODE = true;
                 showDatabaseBadge(true);
             }
         } catch (e) {
-            console.warn('[TM] Sync error:', e.message);
+            console.warn('[TM CLOUD] Sync error:', e.message);
+            showDatabaseBadge(false);
         }
     };
 
-    if (immediate || IS_CLOUD) performSync(); 
-    else syncTimer = setTimeout(performSync, 500); 
+    if (immediate) performSync(); 
+    else syncTimer = setTimeout(performSync, 1000); 
 }
 
-// Force manual sync
 async function forceSync() {
-    showToast('🔄 Memulai Sinkronisasi Data ke Cloud...', 'success');
-    try {
-        await syncToServer(true);
-        // Wait a bit to ensure sync finishes
-        setTimeout(() => {
-            showToast('✅ Sinkronisasi Berhasil! Cek di HP Anda sekarang.', 'success');
-        }, 1500);
-    } catch (e) {
-        showToast('❌ Sinkronisasi Gagal: ' + e.message, 'error');
-    }
+    showToast('🔄 Menyinkronkan ke Cloud...', 'success');
+    await syncToServer(true);
 }
 
-// Ensure data is synced before user leaves or refreshes the page
 window.addEventListener('beforeunload', () => {
-    if (DB_SYNC_DIRTY) {
-        syncToServer(true);
-    }
+    if (DB_SYNC_DIRTY) syncToServer(true);
 });
 
+async function initializeState() {
+    loadSession(); 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MIGRATIONS (schema upgrades for existing data)
-// ─────────────────────────────────────────────────────────────────────────────
-function runMigrations() {
-    if (!STATE.rowLimits) STATE.rowLimits = { ...DEFAULT_STATE.rowLimits };
-    if (!STATE.permissions) STATE.permissions = { ...DEFAULT_STATE.permissions };
-
-    // Ensure arrays
-    ['users', 'orders', 'penebusan', 'pengeluaran', 'penyaluran', 'drivers', 'products', 'kas_angkutan', 'kas_umum'].forEach(key => {
-        if (!STATE[key] || !Array.isArray(STATE[key])) STATE[key] = [];
-    });
-
-    // Ensure admin exists
-    if (STATE.users.length === 0) {
-        STATE.users = [...DEFAULT_STATE.users];
+    // Critical: Load data from server
+    const serverOk = await loadFromServer();
+    
+    if (!serverOk) {
+        console.error('[TM CLOUD] Gagal memuat data dari database cloud.');
     }
 
-    // Seed Kiosk Data from master list
-    const seedKiosks = [
-        { name: 'SUBUR TANI', branch: 'MAGETAN', kecamatan: 'MAOSPATI', desa: 'SEMPOL', pic: 'KASIYANTO' },
-        { name: 'UD MITRA USAHA', branch: 'MAGETAN', kecamatan: 'BARAT', desa: 'JONGGRANG', pic: 'CHINTIA' },
-        { name: 'BASUKI RAHMAT PUTRA', branch: 'MAGETAN', kecamatan: 'BARAT', desa: 'MANGGE', pic: 'DIDIK HARIYANTO' },
-        { name: 'UD. MITRA TANI', branch: 'MAGETAN', kecamatan: 'BARAT', desa: 'JONGGRANG', pic: 'TRI WALUYO' },
-        { name: 'TUNAS MEKAR', branch: 'MAGETAN', kecamatan: 'KARANGREJO', desa: 'GANDRI', pic: 'SULASTRI' },
-        { name: 'ARRIN, UD', branch: 'MAGETAN', kecamatan: 'KARANGREJO', desa: 'GRABAHAN', pic: 'SUWARSININGSIN' },
-        { name: 'SUMBER AGUNG, TOKO', branch: 'MAGETAN', kecamatan: 'KARANGREJO', desa: 'GEBYOK', pic: 'SUYADI' },
-        { name: 'SAHABAT TANI, UD', branch: 'MAGETAN', kecamatan: 'KARANGREJO', desa: 'MARON', pic: 'SUYATMI' },
-        { name: 'PERNADI MAKMUR', branch: 'MAGETAN', kecamatan: 'MAOSPATI', desa: 'KRATON', pic: 'NANI' },
-        { name: 'JASA TANI', branch: 'MAGETAN', kecamatan: 'BARAT', desa: 'PANGGUNG', pic: 'MURYATI' },
-        { name: 'TANI MAJU', branch: 'MAGETAN', kecamatan: 'BARAT', desa: 'BOGOREJO', pic: 'PAIMUN' },
-        { name: 'PANGESTU, UD', branch: 'MAGETAN', kecamatan: 'KARANGREJO', desa: 'PRAMPELAN', pic: 'LINAFSIATUROHMI' },
-        { name: 'AKBAR TANI', branch: 'MAGETAN', kecamatan: 'BARAT', desa: 'BLARAN', pic: 'HERI SUPRIYONO' },
-        { name: 'TANI BERKAH', branch: 'MAGETAN', kecamatan: 'MAOSPATI', desa: 'SUGIHWARAS', pic: 'SRI ENDARWATI' },
-        { name: 'ENDAH TANI', branch: 'MAGETAN', kecamatan: 'MAOSPATI', desa: 'NGUJUNG', pic: 'WIJI' },
-        { name: 'MITRO TANI', branch: 'MAGETAN', kecamatan: 'MAOSPATI', desa: 'KRATON', pic: 'NUNUS ARDHI N' },
-        { name: 'WIDODO TANI', branch: 'MAGETAN', kecamatan: 'MAOSPATI', desa: 'MRANGGEN', pic: 'DIDIK SUPRASETYO' },
-        { name: 'SUMBER TANI BAROKAH, UD', branch: 'MAGETAN', kecamatan: 'KARANGREJO', desa: 'SAMBIREMBE', pic: 'SITI ISMINAH' }
-    ];
-
-    seedKiosks.forEach(sk => {
-        const exists = STATE.users.find(u => u.name === sk.name);
-        if (!exists) {
-            STATE.users.push({
-                ...sk,
-                username: sk.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
-                password: '123',
-                role: 'KIOS'
-            });
-        }
-    });
-
-    saveState();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// INITIALIZE: Load data then run migrations
-// ─────────────────────────────────────────────────────────────────────────────
-async function initializeState() {
-    // Step 1: Load localStorage first (fast, synchronous)
-    loadFromLocalStorage();
-
-    // Step 2: Try to load from SQLite server (async)
-    const serverOk = await loadFromServer();
-
-    // Step 3: Run data migrations/seeds
-    runMigrations();
-
-    // Step 4: Trigger initial render if navigateTo exists
     if (typeof navigateTo === 'function') {
         const hash = window.location.hash.replace('#', '') || 'dashboard';
         navigateTo(hash);
     }
 
-    // Step 5: Start background auto-refresh (Polling every 30 seconds)
+    // Auto-refresh from cloud every 60s
     setInterval(() => {
         loadFromServer(true); 
-    }, 30000);
+    }, 60000);
 }
 
-// ── Start initialization ──────────────────────────────────────────────────────
-// Use a promise so main.js can await if needed
 window._stateReady = initializeState();

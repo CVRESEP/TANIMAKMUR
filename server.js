@@ -67,12 +67,21 @@ app.post('/api/sync', async (req, res) => {
     const tableMap = {
       users: 'users', products: 'products', penebusan: 'penebusan',
       pengeluaran: 'pengeluaran', penyaluran: 'penyaluran', orders: 'orders',
-      kas_angkutan: 'kas_angkutan', kas_umum: 'kas_umum', suppliers: 'suppliers'
+      kas_angkutan: 'kas_angkutan', kas_umum: 'kas_umum', suppliers: 'suppliers',
+      drivers: 'drivers'
     };
 
     for (const [stateKey, table] of Object.entries(tableMap)) {
       const rows = state[stateKey];
       if (!Array.isArray(rows)) continue;
+
+      // SAFETY: Jangan hapus data jika array kosong (mungkin karena kegagalan load di frontend)
+      // Khusus untuk tabel vital seperti users, products, penebusan
+      const isVital = ['users', 'products', 'penebusan', 'penyaluran'].includes(table);
+      if (isVital && rows.length === 0) {
+        console.warn(`[SYNC] Ditunda untuk tabel ${table}: data kosong terdeteksi.`);
+        continue;
+      }
 
       await turso.execute(`DELETE FROM "${table}"`);
       for (const row of rows) {

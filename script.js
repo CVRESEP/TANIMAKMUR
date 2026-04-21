@@ -12,7 +12,22 @@ const timerDisplay = document.getElementById('timer-display');
 const logoutButton = document.getElementById('logout-button');
 
 // Initialization
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    const btn = document.getElementById('login-button');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Memuat Data...';
+    }
+
+    if (window._stateReady) {
+        await window._stateReady;
+    }
+
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Masuk ke Sistem';
+    }
+
     checkSession();
     setupActivityListeners();
 });

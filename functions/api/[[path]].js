@@ -77,16 +77,24 @@ export async function onRequest(context) {
             const batch = [];
             
             for (const [stateKey, table] of Object.entries(tableMap)) {
-                if (!Array.isArray(state[stateKey])) continue;
+                const rows = state[stateKey];
+                if (!Array.isArray(rows)) continue;
+
+                // SAFETY: Jangan hapus data jika array kosong (mungkin karena kegagalan load di frontend)
+                const isVital = ['users', 'products', 'penebusan', 'penyaluran', 'drivers'].includes(table);
+                if (isVital && rows.length === 0) {
+                    console.warn(`[SYNC] Skipped table ${table} due to empty data (Safety Guard)`);
+                    continue;
+                }
+
                 batch.push({ q: `DELETE FROM "${table}"` });
-                for (const row of state[stateKey]) {
+                for (const row of rows) {
                     const cols = Object.keys(row);
                     const placeholders = cols.map(() => '?').join(', ');
                     const args = cols.map(c => {
                         let val = row[c];
                         if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
                         
-                        // Convert to Turso /v2/pipeline expected arg format { type, value }
                         if (val === null) return { type: "null" };
                         if (typeof val === "number") {
                             return Number.isInteger(val) 
