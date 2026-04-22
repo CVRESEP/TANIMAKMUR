@@ -125,7 +125,12 @@ export async function onRequest(context) {
             }
 
             if (batch.length > 0) {
-                await queryTurso(batch);
+                // Chunk the batches to avoid hitting Turso payload limits (max 50 statements per chunk)
+                const chunkSize = 50;
+                for (let i = 0; i < batch.length; i += chunkSize) {
+                    const chunk = batch.slice(i, i + chunkSize);
+                    await queryTurso(chunk);
+                }
             }
             return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
         } catch (e) {
