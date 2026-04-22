@@ -249,6 +249,27 @@ function importFromExcel(type, file) {
                 };
             });
             STATE.users = [...STATE.users, ...processedKiosks];
+        } else if (type === 'penebusan') {
+            const processedPenebusan = jsonData.map(item => {
+                const qtyVal = parseFloat(item['QTY (TON)'] || item.qty || item.QTY || item.jumlah || 0);
+                const totalVal = parseFloat(item['TOTAL NILAI'] || item.total || item.TOTAL || 0);
+                const hargaVal = parseFloat(item.harga || item.HARGA || 0);
+                
+                return {
+                    do: String(item['NO DO'] || item['no do'] || item.do || item.DO || '').toUpperCase().trim(),
+                    date: String(item['TANGGAL'] || item.tanggal || item.date || item.DATE || '').trim(),
+                    kabupaten: String(item['KABUPATEN'] || item.kabupaten || item.branch || item.BRANCH || 'MAGETAN').toUpperCase().trim(),
+                    branch: String(item['KABUPATEN'] || item.kabupaten || item.branch || item.BRANCH || 'MAGETAN').toUpperCase().trim(),
+                    product: String(item['PRODUK'] || item.product || item.PRODUCT || '').toUpperCase().trim(),
+                    qty: qtyVal,
+                    harga: hargaVal,
+                    total: totalVal,
+                    notes: String(item['KETERANGAN'] || item.notes || item.NOTES || '').trim(),
+                };
+            });
+            // Filter invalid records where DO might be completely empty
+            const validData = processedPenebusan.filter(p => p.do !== '');
+            STATE.penebusan = [...(STATE.penebusan || []), ...validData];
         } else {
             // Generic import: also trim all keys and values
             const processedData = jsonData.map(row => {
