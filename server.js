@@ -18,7 +18,7 @@ const app = express();
 const PORT = 3737;
 
 app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '100mb' })); // Naikkan limit untuk sync data besar
 app.use(express.static(__dirname));
 
 let isConnectedToTurso = true;
@@ -28,9 +28,12 @@ let lastError = null;
 async function pingTurso() {
   try {
     // Gunakan query super ringan untuk tes koneksi
+    const start = Date.now();
     await turso.execute('SELECT 1');
+    const latency = Date.now() - start;
+    
     if (!isConnectedToTurso) {
-      console.log('\x1b[32m[DATABASE] ✅ Koneksi ke Cloud Turso kembali normal.\x1b[0m');
+      console.log(`\x1b[32m[DATABASE] ✅ Koneksi pulih (Latency: ${latency}ms).\x1b[0m`);
       isConnectedToTurso = true;
       lastError = null;
     }

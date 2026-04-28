@@ -104,21 +104,19 @@ function paginateData(data, type) {
 }
 
 function goToPage(type, page) {
-    const allData = getFilteredData(type);
-    const limit = STATE.rowLimits[type] || 10;
+    if (!STATE.currentPages) STATE.currentPages = {};
     
-    if (limit === 'all') {
-        STATE.currentPages[type] = 1;
-    } else {
-        const totalPages = Math.ceil(allData.length / parseInt(limit));
-        if (page < 1) page = 1;
-        if (page > totalPages) page = totalPages;
-        STATE.currentPages[type] = page;
-    }
+    STATE.currentPages[type] = page;
     
-    // Rerender current page
+    // Simpan state agar posisi halaman tidak hilang saat refresh
+    saveState();
+    
+    // Render ulang halaman saat ini
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     navigateTo(hash);
+    
+    // Scroll ke atas tabel agar user tahu data sudah berubah
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function renderBranchSelector(name = 'branch', selectedBranch = '', label = 'Cabang', includeAll = false) {
