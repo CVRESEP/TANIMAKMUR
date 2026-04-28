@@ -50,13 +50,40 @@ function renderPengeluaran() {
         }
     }
 
-    tbody.innerHTML = data.map(d => {
-        // Calculate sisa for THIS specific outgoing entry
+    // Inject computed sisaStok field for sorting
+    const allDataWithSisa = allData.map(d => {
         const totalPenyaluranThisEntry = STATE.penyaluran
             .filter(p => p.pengeluaran_id === d.id && p.status !== 'MENUNGGU PENGIRIMAN')
-            .reduce((sum, p) => sum + p.qty, 0);
-        
-        const sisaStokDo = d.keluar - totalPenyaluranThisEntry;
+            .reduce((sum, p) => sum + (parseFloat(p.qty) || 0), 0);
+        return { ...d, sisaStok: d.keluar - totalPenyaluranThisEntry };
+    });
+
+    // Sort if sortConfig targets sisaStok
+    let sortedData = allDataWithSisa;
+    if (STATE.sortConfig.column === 'sisaStok') {
+        sortedData = [...allDataWithSisa].sort((a, b) => {
+            return STATE.sortConfig.order === 'asc' ? a.sisaStok - b.sisaStok : b.sisaStok - a.sisaStok;
+        });
+    }
+
+    const data = paginateData(sortedData, 'pengeluaran');
+
+    // Inject SISA STOK sort header if not present
+    const table = tbody.closest('table');
+    const thead = table ? table.querySelector('thead tr') : null;
+    if (thead && !thead.querySelector('.th-sisa-stok')) {
+        // Find the SISA STOK header and add onclick
+        Array.from(thead.querySelectorAll('th')).forEach(th => {
+            if (th.textContent.trim().startsWith('SISA')) {
+                th.classList.add('th-sisa-stok');
+                th.style.cursor = 'pointer';
+                th.setAttribute('onclick', "handleSort('sisaStok')");
+            }
+        });
+    }
+
+    tbody.innerHTML = data.map(d => {
+        const sisaStokDo = d.sisaStok;
 
         return `
             <tr>
@@ -86,13 +113,12 @@ function renderPengeluaran() {
             </tr>
         `;
     }).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Belum ada data tersedia</td></tr>`;
-    
+
     const wrapper = tbody.closest('.table-container');
     if (wrapper) {
         if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
             wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('pengeluaran'));
         }
-        
         if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
             wrapper.nextElementSibling.remove();
         }

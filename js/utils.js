@@ -303,13 +303,24 @@ function renderRowLimitSelector(type) {
 let searchTimer;
 function handleSearch(val) {
     clearTimeout(searchTimer);
+    // Store current value immediately so it's visible while debouncing
+    STATE.globalSearch = val;
     searchTimer = setTimeout(() => {
-        STATE.globalSearch = val;
         // Reset page ke 1 saat cari
         Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
         const hash = window.location.hash.replace('#', '') || 'dashboard';
         navigateTo(hash);
-    }, 400); // Debounce agar tidak lag saat mengetik
+        // Kembalikan fokus ke input pencarian setelah re-render
+        setTimeout(() => {
+            const searchInput = document.querySelector('.table-header-controls input[type="text"]');
+            if (searchInput) {
+                searchInput.focus();
+                // Pindahkan cursor ke akhir teks
+                const len = searchInput.value.length;
+                searchInput.setSelectionRange(len, len);
+            }
+        }, 50);
+    }, 350);
 }
 
 function handleDateFilter(type, val) {
@@ -322,6 +333,7 @@ function handleDateFilter(type, val) {
 function resetFilters() {
     STATE.globalSearch = '';
     STATE.globalDateFilter = { start: '', end: '' };
+    STATE.sortConfig = { column: 'date', order: 'desc' }; // Reset ke default tanggal
     Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     navigateTo(hash);
