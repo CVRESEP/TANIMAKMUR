@@ -14,21 +14,30 @@ function renderKiosks() {
     const table = tbody.closest('table');
     const thead = table.querySelector('thead tr');
     if (thead) {
-        const hasCheck = thead.querySelector('.col-check');
-        if (isSelectMode && !hasCheck) {
-            thead.insertAdjacentHTML('afterbegin', `
-                <th class="col-check" style="width: 40px;">
-                    <input type="checkbox" onclick="toggleSelectAll(this)">
-                </th>
-            `);
-        } else if (!isSelectMode && hasCheck) {
-            hasCheck.remove();
+        // Hapus header lama jika ada (untuk re-render)
+        const cols = Array.from(thead.querySelectorAll('th'));
+        if (cols.length < 8) { // Jika kolom belum lengkap (Nama, ID, Cabang, Kec, Desa, PIC, Telp, Pass, Kurang Bayar, Aksi)
+            thead.innerHTML = `
+                ${isSelectMode ? '<th class="col-check" style="width: 40px;"><input type="checkbox" onclick="toggleSelectAll(this)"></th>' : ''}
+                <th>NAMA KIOS</th>
+                <th>ID/USERNAME</th>
+                <th>CABANG</th>
+                <th>KECAMATAN</th>
+                <th>PIC / PEMILIK</th>
+                <th class="text-right">KURANG BAYAR</th>
+                <th style="width: 120px;">AKSI</th>
+            `;
         }
     }
 
     tbody.innerHTML = data.map(k => {
         const branchDisplay = k.branch || '-';
         const branchClass = branchDisplay.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        // Hitung total hutang (Belum Lunas)
+        const unpaidTotal = STATE.orders
+            .filter(o => o.kiosk === k.name && o.status !== 'LUNAS')
+            .reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
 
         return `
             <tr>
@@ -37,14 +46,16 @@ function renderKiosks() {
                 <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${k.username}</code></td>
                 <td><span class="badge ${branchClass}">${branchDisplay}</span></td>
                 <td>${k.kecamatan || '-'}</td>
-                <td>${k.desa || '-'}</td>
                 <td>${k.pic || '-'}</td>
-                <td>${k.phone || '-'}</td>
-                <td><code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${k.password || '123'}</code></td>
+                <td class="text-right">
+                    <span class="badge ${unpaidTotal > 0 ? 'status-red' : 'status-green'}" style="font-weight:700;">
+                        ${unpaidTotal > 0 ? formatCurrency(unpaidTotal) : 'LUNAS'}
+                    </span>
+                </td>
                 <td>
-                    <div style="display: flex; gap: 5px;">
+                    <div style="display: flex; gap: 5px; justify-content: flex-end;">
                         <button class="action-btn small t-icon" title="Lihat Detail Pesanan" onclick="viewKioskOrders('${k.name}')">
-                            <i data-lucide="eye"></i>
+                            <i data-lucide="history"></i>
                         </button>
                         <button class="action-btn small t-icon" title="Edit Data Kios" onclick="openEditKioskModal('${k.username}')">
                             <i data-lucide="edit"></i>
@@ -197,23 +208,26 @@ function deleteKiosk(username) {
 }
 
 function viewKioskOrders(kioskName) {
-    const kioskOrders = STATE.orders.filter(o => o.kiosk === kioskName);
+    const kioskOrders = STATE.orders
+        .filter(o => o.kiosk === kioskName)
+        .sort((a, b) => new Date(b.date) - new Date(a.date)); // Urutkan dari yang terbaru
+
     const totalDebt = kioskOrders
         .filter(o => o.status !== 'LUNAS')
-        .reduce((sum, o) => sum + (o.total || 0), 0);
+        .reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
     
-    const title = `Riwayat Pesanan - ${kioskName} ${totalDebt > 0 ? `<span style="color:#ef4444; margin-left:15px; font-weight:700; font-size:1.1rem;">| Kurang Bayar: ${formatCurrency(totalDebt)}</span>` : ''}`;
+    const title = `Riwayat Pesanan - ${kioskName} ${totalDebt > 0 ? `<span style="color:#ef4444; margin-left:15px; font-weight:800; font-size:1.1rem;">| KURANG BAYAR: ${formatCurrency(totalDebt)}</span>` : ''}`;
 
     const content = `
-        <div class="table-container">
-            <table>
-                <thead>
+        <div class="table-container" style="max-height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
+            <table class="table">
+                <thead style="position: sticky; top: 0; background: var(--bg-card); z-index: 10;">
                     <tr>
                         <th style="width: 100px;">TANGGAL</th>
                         <th style="width: 150px;">NO PENYALURAN</th>
                         <th>PRODUK</th>
                         <th>QTY</th>
-                        <th>TOTAL</th>
+                        <th class="text-right">TOTAL</th>
                         <th style="width: 120px;">STATUS</th>
                     </tr>
                 </thead>
@@ -224,15 +238,15 @@ function viewKioskOrders(kioskName) {
                             <td>${o.pylId ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-family:monospace;">${o.pylId}</span>` : '<span style="color:var(--text-dim); font-size:0.75rem;">MENUNGGU</span>'}</td>
                             <td>${o.product}</td>
                             <td>${o.qty} Ton</td>
-                            <td>${formatCurrency(o.total)}</td>
+                            <td class="text-right"><strong>${formatCurrency(o.total)}</strong></td>
                             <td><span class="badge ${o.status.toLowerCase().replace(/ /g, '-')}">${o.status}</span></td>
                         </tr>
-                    `).join('') || '<tr><td colspan="100%" style="text-align:center; padding: 20px;">Belum ada riwayat pesanan</td></tr>'}
+                    `).join('') || '<tr><td colspan="100%" style="text-align:center; padding: 40px; color: var(--text-dim);">Belum ada riwayat pesanan tersedia</td></tr>'}
                 </tbody>
             </table>
         </div>
     `;
-    openModal(title, content, '800px');
+    openModal(title, content, '950px');
 }
 function printKioskDebts() {
     const kiosks = getFilteredData('users').filter(u => u.role === 'KIOS');
