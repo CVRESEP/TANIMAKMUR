@@ -33,7 +33,14 @@ const DEFAULT_STATE = {
     rowLimits: {
         penebusan: 10, pengeluaran: 10, penyaluran: 10,
         approvals: 10, orders_kiosk: 10, products: 10, kiosks: 10,
-        kas_angkutan: 10, kas_umum: 10
+        kas_angkutan: 10, kas_umum: 10, users: 10, payments: 10,
+        drivers: 10
+    },
+    currentPages: {
+        penebusan: 1, pengeluaran: 1, penyaluran: 1,
+        approvals: 1, orders_kiosk: 1, products: 1, kiosks: 1,
+        kas_angkutan: 1, kas_umum: 1, users: 1, payments: 1,
+        drivers: 1
     },
     uiSelectionMode: {},
     activeBranchFilter: 'ALL',

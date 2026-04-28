@@ -48,6 +48,18 @@ function renderOrdersKiosk() {
     }).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 40px; color: var(--text-dim);">Belum ada riwayat pesanan</td></tr>`;
 
     lucide.createIcons();
+
+    const wrapper = tbody.closest('.table-container');
+    if (wrapper) {
+        if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
+            wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('orders_kiosk'));
+        }
+        
+        if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
+            wrapper.nextElementSibling.remove();
+        }
+        wrapper.insertAdjacentHTML('afterend', renderTableFooter('orders_kiosk', myOrders.length, data.length));
+    }
 }
 
 function openAddOrderModal() {
@@ -266,6 +278,18 @@ function renderApprovals() {
             </tr>
         `;
     }).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Tidak ada antrian persetujuan</td></tr>`;
+
+    const wrapper = tbody.closest('.table-container');
+    if (wrapper) {
+        if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
+            wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('approvals'));
+        }
+        
+        if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
+            wrapper.nextElementSibling.remove();
+        }
+        wrapper.insertAdjacentHTML('afterend', renderTableFooter('approvals', data.length, paginated.length));
+    }
 
     lucide.createIcons();
 }

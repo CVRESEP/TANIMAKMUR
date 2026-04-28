@@ -58,12 +58,14 @@ function renderProducts() {
         if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
             wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('products'));
         }
-        if (!wrapper.nextElementSibling || !wrapper.nextElementSibling.classList.contains('table-footer-info')) {
-            wrapper.insertAdjacentHTML('afterend', renderTableFooter(allData.length, data.length));
-        } else {
-            wrapper.nextElementSibling.textContent = `Menampilkan ${data.length} dari ${allData.length} total data`;
+        
+        // Remove old footer if exists to avoid duplication
+        if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
+            wrapper.nextElementSibling.remove();
         }
+        wrapper.insertAdjacentHTML('afterend', renderTableFooter('products', allData.length, data.length));
     }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function deleteProduct(code) {

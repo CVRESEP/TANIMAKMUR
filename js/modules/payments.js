@@ -37,5 +37,17 @@ function renderPayments() {
         `;
     }
     
-    lucide.createIcons();
+    const wrapper = tbody.closest('.table-container');
+    if (wrapper) {
+        if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
+            wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('payments'));
+        }
+        
+        if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
+            wrapper.nextElementSibling.remove();
+        }
+        wrapper.insertAdjacentHTML('afterend', renderTableFooter('payments', settledOrders.length, data.length));
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }

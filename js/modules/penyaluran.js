@@ -77,9 +77,19 @@ function renderPenyaluran() {
         `;
     }).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Belum ada data tersedia</td></tr>`;
     
-    // ... (limit selector and footer logic removed for brevity but preserved in final file)
+    const wrapper = tbody.closest('.table-container');
+    if (wrapper) {
+        if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
+            wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('penyaluran'));
+        }
+        
+        if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
+            wrapper.nextElementSibling.remove();
+        }
+        wrapper.insertAdjacentHTML('afterend', renderTableFooter('penyaluran', allData.length, data.length));
+    }
     
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function openProsesPenyaluranModal(pylId) {

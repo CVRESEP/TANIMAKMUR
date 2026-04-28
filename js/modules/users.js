@@ -25,7 +25,8 @@ function renderUsers() {
     // Filter out KIOS accounts as they are managed in Daftar Kios page
     const staffUsers = STATE.users.filter(u => u.role !== 'KIOS');
 
-    tbody.innerHTML = staffUsers.map(u => `
+    const data = paginateData(staffUsers, 'users');
+    tbody.innerHTML = data.map(u => `
         <tr>
             ${isSelectMode ? `<td>${u.username === 'admin' ? '' : `<input type="checkbox" class="row-checkbox" value="${u.username}">`}</td>` : ''}
             <td><strong>${u.username}</strong></td>
@@ -52,7 +53,19 @@ function renderUsers() {
         </tr>
     `).join('');
     
-    lucide.createIcons();
+    const wrapper = tbody.closest('.table-container');
+    if (wrapper) {
+        if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
+            wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('users'));
+        }
+        
+        if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
+            wrapper.nextElementSibling.remove();
+        }
+        wrapper.insertAdjacentHTML('afterend', renderTableFooter('users', staffUsers.length, data.length));
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function openAddUserModal() {

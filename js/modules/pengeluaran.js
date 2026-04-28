@@ -83,7 +83,19 @@ function renderPengeluaran() {
         `;
     }).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Belum ada data tersedia</td></tr>`;
     
-    lucide.createIcons();
+    const wrapper = tbody.closest('.table-container');
+    if (wrapper) {
+        if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
+            wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('pengeluaran'));
+        }
+        
+        if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
+            wrapper.nextElementSibling.remove();
+        }
+        wrapper.insertAdjacentHTML('afterend', renderTableFooter('pengeluaran', allData.length, data.length));
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function openAddPengeluaranModal() {

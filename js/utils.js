@@ -86,11 +86,41 @@ function renderGlobalBranchFilter() {
     `;
 }
 
-function paginateData(data, page) {
-    const limit = STATE.rowLimits[page] || 10;
+function paginateData(data, type) {
+    const limit = STATE.rowLimits[type] || 10;
     if (limit === 'all') return data;
-    return data.slice(0, parseInt(limit));
+    
+    const limitInt = parseInt(limit);
+    const currentPage = STATE.currentPages[type] || 1;
+    const startIndex = (currentPage - 1) * limitInt;
+    
+    // Ensure we don't return an empty page if data was deleted
+    if (startIndex >= data.length && data.length > 0) {
+        STATE.currentPages[type] = Math.ceil(data.length / limitInt);
+        return paginateData(data, type);
+    }
+    
+    return data.slice(startIndex, startIndex + limitInt);
 }
+
+function goToPage(type, page) {
+    const allData = getFilteredData(type);
+    const limit = STATE.rowLimits[type] || 10;
+    
+    if (limit === 'all') {
+        STATE.currentPages[type] = 1;
+    } else {
+        const totalPages = Math.ceil(allData.length / parseInt(limit));
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+        STATE.currentPages[type] = page;
+    }
+    
+    // Rerender current page
+    const hash = window.location.hash.replace('#', '') || 'dashboard';
+    navigateTo(hash);
+}
+
 function renderBranchSelector(name = 'branch', selectedBranch = '', label = 'Cabang', includeAll = false) {
     const user = STATE.currentUser;
     const isRestricted = !['OWNER', 'MANAJER'].includes(user.role.toUpperCase());
@@ -126,13 +156,13 @@ function renderBranchSelector(name = 'branch', selectedBranch = '', label = 'Cab
     `;
 }
 
-function renderRowLimitSelector(page) {
-    const currentLimit = STATE.rowLimits[page] || 10;
+function renderRowLimitSelector(type) {
+    const currentLimit = STATE.rowLimits[type] || 10;
     return `
-        <div class="table-header-controls">
-            <div class="row-limit-selector">
+        <div class="table-header-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div class="row-limit-selector" style="font-size: 0.85rem; color: var(--text-dim);">
                 Tampilkan 
-                <select onchange="updateRowLimit('${page}', this.value)">
+                <select onchange="updateRowLimit('${type}', this.value)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-weight: 600; color: var(--primary); outline: none;">
                     <option value="10" ${currentLimit == 10 ? 'selected' : ''}>10</option>
                     <option value="50" ${currentLimit == 50 ? 'selected' : ''}>50</option>
                     <option value="100" ${currentLimit == 100 ? 'selected' : ''}>100</option>
@@ -144,8 +174,9 @@ function renderRowLimitSelector(page) {
     `;
 }
 
-function updateRowLimit(page, value) {
-    STATE.rowLimits[page] = value;
+function updateRowLimit(type, value) {
+    STATE.rowLimits[type] = value;
+    STATE.currentPages[type] = 1; // Reset to page 1
     saveState();
     
     // Rerender specifically the current page
@@ -153,10 +184,60 @@ function updateRowLimit(page, value) {
     navigateTo(hash);
 }
 
-function renderTableFooter(total, shown) {
+function renderTableFooter(type, total, shown) {
+    const limit = STATE.rowLimits[type] || 10;
+    const currentPage = STATE.currentPages[type] || 1;
+    
+    let paginationHtml = '';
+    
+    if (limit !== 'all' && total > parseInt(limit)) {
+        const totalPages = Math.ceil(total / parseInt(limit));
+        const maxVisible = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+        
+        if (endPage - startPage + 1 < maxVisible) {
+            startPage = Math.max(1, endPage - maxVisible + 1);
+        }
+
+        paginationHtml = `
+            <div class="pagination-controls" style="display: flex; gap: 5px; align-items: center;">
+                <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="goToPage('${type}', ${currentPage - 1})" style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: #fff; cursor: ${currentPage === 1 ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === 1 ? '0.5' : '1'};">
+                    <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i>
+                </button>
+                
+                ${startPage > 1 ? `
+                    <button class="pagination-btn" onclick="goToPage('${type}', 1)" style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: #fff;">1</button>
+                    ${startPage > 2 ? '<span style="color: var(--text-dim);">...</span>' : ''}
+                ` : ''}
+
+                ${Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map(p => `
+                    <button class="pagination-btn ${p === currentPage ? 'active' : ''}" onclick="goToPage('${type}', ${p})" style="padding: 5px 10px; border-radius: 6px; border: 1px solid ${p === currentPage ? 'var(--primary)' : 'var(--border)'}; background: ${p === currentPage ? 'var(--primary)' : '#fff'}; color: ${p === currentPage ? '#fff' : 'var(--text-main)'}; font-weight: ${p === currentPage ? '700' : '500'};">
+                        ${p}
+                    </button>
+                `).join('')}
+
+                ${endPage < totalPages ? `
+                    ${endPage < totalPages - 1 ? '<span style="color: var(--text-dim);">...</span>' : ''}
+                    <button class="pagination-btn" onclick="goToPage('${type}', ${totalPages})" style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: #fff;">${totalPages}</button>
+                ` : ''}
+
+                <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="goToPage('${type}', ${currentPage + 1})" style="padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); background: #fff; cursor: ${currentPage === totalPages ? 'not-allowed' : 'pointer'}; opacity: ${currentPage === totalPages ? '0.5' : '1'};">
+                    <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                </button>
+            </div>
+        `;
+    }
+
+    const startIndex = limit === 'all' ? 1 : (currentPage - 1) * parseInt(limit) + 1;
+    const endIndex = limit === 'all' ? total : Math.min(total, currentPage * parseInt(limit));
+
     return `
-        <div class="table-footer-info">
-            Menampilkan ${shown} dari ${total} total data
+        <div class="table-footer-info" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-top: 1px solid var(--border); margin-top: 10px; font-size: 0.85rem; color: var(--text-dim);">
+            <div>
+                Menampilkan <strong>${total > 0 ? startIndex : 0} - ${endIndex}</strong> dari <strong>${total}</strong> total data
+            </div>
+            ${paginationHtml}
         </div>
     `;
 }

@@ -63,14 +63,14 @@ function renderKiosks() {
         if (!wrapper.previousElementSibling || !wrapper.previousElementSibling.classList.contains('table-header-controls')) {
             wrapper.insertAdjacentHTML('beforebegin', renderRowLimitSelector('kiosks'));
         }
-        if (!wrapper.nextElementSibling || !wrapper.nextElementSibling.classList.contains('table-footer-info')) {
-            wrapper.insertAdjacentHTML('afterend', renderTableFooter(kiosks.length, data.length));
-        } else {
-            wrapper.nextElementSibling.textContent = `Menampilkan ${data.length} dari ${kiosks.length} total data`;
+        
+        if (wrapper.nextElementSibling && wrapper.nextElementSibling.classList.contains('table-footer-info')) {
+            wrapper.nextElementSibling.remove();
         }
+        wrapper.insertAdjacentHTML('afterend', renderTableFooter('kiosks', kiosks.length, data.length));
     }
     
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function openAddKioskModal() {
