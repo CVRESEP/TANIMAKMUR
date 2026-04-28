@@ -25,9 +25,8 @@ let isConnectedToTurso = true;
 let lastError = null;
 
 // ── TURSO KEEPALIVE & HEALTH MONITOR ──────────────────────────────────────────
-async function pingTurso() {
+async function pingTurso(retryCount = 0) {
   try {
-    // Gunakan query super ringan untuk tes koneksi
     const start = Date.now();
     await turso.execute('SELECT 1');
     const latency = Date.now() - start;
@@ -38,6 +37,12 @@ async function pingTurso() {
       lastError = null;
     }
   } catch (e) {
+    // Jika gagal, coba lagi sampai 3x sebelum benar-benar dianggap putus
+    if (retryCount < 3) {
+      setTimeout(() => pingTurso(retryCount + 1), 2000);
+      return;
+    }
+
     lastError = e.message;
     if (isConnectedToTurso) {
       console.warn('\x1b[31m[DATABASE] ⚠️ Koneksi Cloud Terputus:', e.message, '\x1b[0m');
