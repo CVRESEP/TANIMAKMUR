@@ -44,6 +44,11 @@ const DEFAULT_STATE = {
     },
     uiSelectionMode: {},
     activeBranchFilter: 'ALL',
+    globalSearch: '',
+    globalDateFilter: {
+        start: '',
+        end: ''
+    },
     settings: {
         company_name: 'TANI MAKMUR',
         company_address: 'Alamat Perusahaan Belum Diatur',

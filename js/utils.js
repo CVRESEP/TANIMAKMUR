@@ -34,26 +34,44 @@ function getFilteredData(type) {
     let data = STATE[type] || [];
     if (!Array.isArray(data)) return [];
 
-    // Use activeBranchFilter if user has ALL access, otherwise use their assigned branch
+    // 1. Filter Cabang (Branch Filter)
     const filterBranch = (user.branch === 'ALL') ? (STATE.activeBranchFilter || 'ALL') : user.branch;
+    let filtered = data;
     
-    if (filterBranch === 'ALL') return data;
-    
-    // Restricted filtering
-    return data.filter(d => {
-        let rawBranch = d.branch;
-        if (rawBranch === 'ALL' && d.kabupaten) rawBranch = d.kabupaten;
-        
-        let itemBranch = (rawBranch || d.kabupaten || '').trim().toUpperCase();
-        if (itemBranch === '') itemBranch = 'MAGETAN'; // Fallback for old data without branch
+    if (filterBranch !== 'ALL') {
+        filtered = filtered.filter(d => {
+            let rawBranch = d.branch;
+            if (rawBranch === 'ALL' && d.kabupaten) rawBranch = d.kabupaten;
+            let itemBranch = (rawBranch || d.kabupaten || '').trim().toUpperCase();
+            if (itemBranch === '') itemBranch = 'MAGETAN';
+            const filterBranchUpper = filterBranch.toUpperCase();
+            return itemBranch === filterBranchUpper || itemBranch === 'ALL';
+        });
+    }
 
-        const filterBranchUpper = filterBranch.toUpperCase();
+    // 2. Filter Tanggal (Date Filter)
+    if (STATE.globalDateFilter.start || STATE.globalDateFilter.end) {
+        filtered = filtered.filter(d => {
+            const itemDate = d.date || d.tanggal;
+            if (!itemDate) return true; // Baris tanpa tanggal tetap muncul
+            
+            if (STATE.globalDateFilter.start && itemDate < STATE.globalDateFilter.start) return false;
+            if (STATE.globalDateFilter.end && itemDate > STATE.globalDateFilter.end) return false;
+            return true;
+        });
+    }
 
-        if (filterBranchUpper === 'ALL') return true;
-        if (itemBranch === 'ALL') return true;
-        
-        return itemBranch === filterBranchUpper;
-    });
+    // 3. Filter Pencarian (Search Filter)
+    if (STATE.globalSearch) {
+        const query = STATE.globalSearch.toLowerCase();
+        filtered = filtered.filter(d => {
+            return Object.values(d).some(val => 
+                String(val).toLowerCase().includes(query)
+            );
+        });
+    }
+
+    return filtered;
 }
 
 function updateGlobalBranchFilter(val) {
@@ -157,19 +175,83 @@ function renderBranchSelector(name = 'branch', selectedBranch = '', label = 'Cab
 function renderRowLimitSelector(type) {
     const currentLimit = STATE.rowLimits[type] || 10;
     return `
-        <div class="table-header-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div class="row-limit-selector" style="font-size: 0.85rem; color: var(--text-dim);">
-                Tampilkan 
-                <select onchange="updateRowLimit('${type}', this.value)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-weight: 600; color: var(--primary); outline: none;">
-                    <option value="10" ${currentLimit == 10 ? 'selected' : ''}>10</option>
-                    <option value="50" ${currentLimit == 50 ? 'selected' : ''}>50</option>
-                    <option value="100" ${currentLimit == 100 ? 'selected' : ''}>100</option>
-                    <option value="all" ${currentLimit == 'all' ? 'selected' : ''}>Semua</option>
-                </select>
-                data per halaman
+        <div class="table-header-controls" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid var(--border);">
+            <!-- Row 1: Search & Date Filters -->
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
+                <div class="filter-group" style="flex: 1; min-width: 250px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Cari Data</label>
+                    <div style="position: relative;">
+                        <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; color: var(--text-dim);"></i>
+                        <input type="text" placeholder="Ketik nama kios, produk, atau nomor DO..." 
+                               value="${STATE.globalSearch || ''}"
+                               oninput="handleSearch(this.value)"
+                               style="width: 100%; padding: 10px 15px 10px 40px; border-radius: 8px; border: 1px solid var(--border); outline: none; transition: border-color 0.2s; font-size: 0.9rem;">
+                    </div>
+                </div>
+                
+                <div class="filter-group" style="min-width: 150px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase;">Dari Tanggal</label>
+                    <input type="date" value="${STATE.globalDateFilter.start || ''}" 
+                           onchange="handleDateFilter('start', this.value)"
+                           style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); outline: none; font-size: 0.9rem;">
+                </div>
+
+                <div class="filter-group" style="min-width: 150px;">
+                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase;">Sampai Tanggal</label>
+                    <input type="date" value="${STATE.globalDateFilter.end || ''}" 
+                           onchange="handleDateFilter('end', this.value)"
+                           style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); outline: none; font-size: 0.9rem;">
+                </div>
+
+                <button class="action-btn" onclick="resetFilters()" style="height: 40px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-weight: 600;">
+                    RESET FILTER
+                </button>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 0;">
+
+            <!-- Row 2: Limit Selector -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="row-limit-selector" style="font-size: 0.85rem; color: var(--text-dim); display: flex; align-items: center; gap: 8px;">
+                    Tampilkan 
+                    <select onchange="updateRowLimit('${type}', this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); font-weight: 700; color: var(--primary); outline: none; background: #f8fafc; cursor: pointer;">
+                        <option value="10" ${currentLimit == 10 ? 'selected' : ''}>10</option>
+                        <option value="50" ${currentLimit == 50 ? 'selected' : ''}>50</option>
+                        <option value="100" ${currentLimit == 100 ? 'selected' : ''}>100</option>
+                        <option value="all" ${currentLimit == 'all' ? 'selected' : ''}>Semua</option>
+                    </select>
+                    baris data per halaman
+                </div>
             </div>
         </div>
     `;
+}
+
+let searchTimer;
+function handleSearch(val) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        STATE.globalSearch = val;
+        // Reset page ke 1 saat cari
+        Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
+        const hash = window.location.hash.replace('#', '') || 'dashboard';
+        navigateTo(hash);
+    }, 400); // Debounce agar tidak lag saat mengetik
+}
+
+function handleDateFilter(type, val) {
+    STATE.globalDateFilter[type] = val;
+    Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
+    const hash = window.location.hash.replace('#', '') || 'dashboard';
+    navigateTo(hash);
+}
+
+function resetFilters() {
+    STATE.globalSearch = '';
+    STATE.globalDateFilter = { start: '', end: '' };
+    Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
+    const hash = window.location.hash.replace('#', '') || 'dashboard';
+    navigateTo(hash);
 }
 
 function updateRowLimit(type, value) {
