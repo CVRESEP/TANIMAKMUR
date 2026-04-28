@@ -29,10 +29,37 @@ const PRIMARY_KEYS = {
   suppliers: 'id', settings: 'key'
 };
 
+// ── TURSO KEEPALIVE ───────────────────────────────────────────────────────────
+// Ping setiap 30 detik agar koneksi tidak idle/drop
+let isConnected = true;
+
+async function pingTurso() {
+  try {
+    await turso.execute('SELECT 1');
+    if (!isConnected) {
+      console.log('[TM] ✅ Koneksi Turso pulih kembali.');
+      isConnected = true;
+    }
+  } catch (e) {
+    if (isConnected) {
+      console.warn('[TM] ⚠️  Koneksi Turso terputus:', e.message);
+      isConnected = false;
+    }
+  }
+}
+
+setInterval(pingTurso, 30000);
+pingTurso(); // Ping pertama saat startup
+
 // ── API ROUTES ────────────────────────────────────────────────────────────────
 
+// Health check endpoint (dipakai client untuk deteksi koneksi)
+app.get('/api/ping', (req, res) => {
+  res.json({ ok: true, connected: isConnected, ts: Date.now() });
+});
+
 app.get('/api/status', async (req, res) => {
-  res.json({ ok: true, type: 'Turso Cloud' });
+  res.json({ ok: true, type: 'Turso Cloud', connected: isConnected });
 });
 
 // Load full state
@@ -52,8 +79,11 @@ app.get('/api/load-state', async (req, res) => {
         state[table] = rs.rows;
       }
     }
+    isConnected = true;
     res.json(state);
   } catch (e) {
+    isConnected = false;
+    console.error('[TM] Load-state error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -75,8 +105,7 @@ app.post('/api/sync', async (req, res) => {
       const rows = state[stateKey];
       if (!Array.isArray(rows)) continue;
 
-      // SAFETY: Jangan hapus data jika array kosong (mungkin karena kegagalan load di frontend)
-      // Khusus untuk tabel vital seperti users, products.
+      // SAFETY: Jangan hapus data jika array kosong
       const isVital = ['users', 'products'].includes(table);
       if (isVital && rows.length === 0) {
         console.warn(`[SYNC] Ditunda untuk tabel ${table}: data kosong terdeteksi.`);
@@ -96,7 +125,7 @@ app.post('/api/sync', async (req, res) => {
       }
     }
 
-    // Settings
+    // Settings & metadata
     const metadataKeys = ['permissions', 'rowLimits', 'activeBranchFilter', 'settings'];
     for (const key of metadataKeys) {
       if (state[key] !== undefined) {
@@ -108,13 +137,16 @@ app.post('/api/sync', async (req, res) => {
       }
     }
 
+    isConnected = true;
     res.json({ ok: true });
   } catch (e) {
+    isConnected = false;
+    console.error('[TM] Sync error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-// Notifications
+// Notifications - WhatsApp
 app.post('/api/send-wa', async (req, res) => {
   const { to, message } = req.body;
   try {
@@ -131,6 +163,7 @@ app.post('/api/send-wa', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Notifications - Telegram
 app.post('/api/send-tg', async (req, res) => {
   const { chat_id, message } = req.body;
   try {
@@ -147,7 +180,24 @@ app.post('/api/send-tg', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── GLOBAL ERROR HANDLER ──────────────────────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('[TM] Unhandled error:', err.message);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// ── PREVENT CRASH ON UNHANDLED ERRORS ────────────────────────────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[TM] ❌ Uncaught Exception (server tetap jalan):', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[TM] ❌ Unhandled Rejection (server tetap jalan):', reason);
+});
+
+// ── START SERVER ──────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n\x1b[32m🚀 SERVER TANI MAKMUR (TURSO CLOUD) AKTIF\x1b[0m`);
-    console.log(`\x1b[36m🔗 Dashboard: http://localhost:${PORT}/dashboard.html\x1b[0m\n`);
+    console.log(`\x1b[36m🔗 Dashboard: http://localhost:${PORT}/dashboard.html\x1b[0m`);
+    console.log(`\x1b[33m⚡ Turso Keepalive: aktif (ping setiap 30 detik)\x1b[0m\n`);
 });

@@ -68,11 +68,10 @@ function loadSession() {
 }
 
 async function loadFromServer(silent = false) {
-    if (DB_SYNC_DIRTY) return false; 
-
+    // Tidak lagi diblok oleh DB_SYNC_DIRTY — refresh data tetap berjalan
     try {
-        const r = await fetch(`${API_BASE}/load-state`, { signal: AbortSignal.timeout(10000) });
-        if (!r.ok) throw new Error('Server error');
+        const r = await fetch(`${API_BASE}/load-state`, { signal: AbortSignal.timeout(15000) });
+        if (!r.ok) throw new Error('Server error ' + r.status);
         const serverState = await r.json();
 
         if (serverState && typeof serverState === 'object' && !serverState.error) {
@@ -85,7 +84,7 @@ async function loadFromServer(silent = false) {
             });
 
             loadSession(); // Re-apply session over loaded state
-            STATE_LOADED_FROM_SERVER = true; // IMPORTANT: Data is now safe to sync back
+            STATE_LOADED_FROM_SERVER = true;
             showDatabaseBadge(true);
             return true;
         }
@@ -93,6 +92,9 @@ async function loadFromServer(silent = false) {
         if (!silent) {
             console.warn('[TM CLOUD] Connection error:', e.message);
             showDatabaseBadge(false);
+        } else {
+            // Silent mode: update badge tapi jangan log
+            updateSyncBadge('offline');
         }
     }
     return false;
@@ -241,7 +243,12 @@ async function initializeState() {
     const serverOk = await loadFromServer();
     
     if (!serverOk) {
-        console.error('[TM CLOUD] Gagal memuat data dari database cloud.');
+        console.error('[TM CLOUD] Gagal memuat data dari database cloud. Mencoba ulang...');
+        // Retry sekali setelah 3 detik
+        setTimeout(async () => {
+            const retry = await loadFromServer();
+            if (!retry) showDatabaseBadge(false);
+        }, 3000);
     }
 
     if (typeof navigateTo === 'function') {
@@ -249,10 +256,34 @@ async function initializeState() {
         navigateTo(hash);
     }
 
-    // Auto-refresh from cloud every 60s
+    // Auto-refresh dari cloud setiap 30 detik (lebih agresif dari sebelumnya)
     setInterval(() => {
-        loadFromServer(true); 
-    }, 60000);
+        if (!DB_SYNC_DIRTY) loadFromServer(true); 
+    }, 30000);
+
+    // Ping monitor: cek koneksi ke server setiap 15 detik
+    let wasOffline = false;
+    setInterval(async () => {
+        try {
+            const r = await fetch(`${API_BASE}/ping`, { signal: AbortSignal.timeout(5000) });
+            if (r.ok) {
+                if (wasOffline) {
+                    wasOffline = false;
+                    console.log('[TM CLOUD] ✅ Koneksi pulih. Memuat ulang data...');
+                    await loadFromServer(true);
+                    updateSyncBadge('online');
+                }
+            } else {
+                throw new Error('ping failed');
+            }
+        } catch {
+            if (!wasOffline) {
+                wasOffline = true;
+                console.warn('[TM CLOUD] ⚠️ Server tidak merespons.');
+                updateSyncBadge('offline');
+            }
+        }
+    }, 15000);
 }
 
 window._stateReady = initializeState();
