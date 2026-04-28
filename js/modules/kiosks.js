@@ -290,34 +290,9 @@ function saveDeposit(e, kioskName) {
     
     if (type === 'ADD') {
         STATE.settings.deposits[kioskName] = currentDeposit + amount;
-        
-        // Catat masuk ke Kas Umum otomatis
-        STATE.kas_umum.push({
-            id: generateId('KAS'),
-            date: new Date().toISOString().split('T')[0],
-            desc: `Titipan uang dari kios ${kioskName}`,
-            kabupaten: STATE.users.find(u => u.name === kioskName)?.branch || 'PUSAT',
-            masuk: amount,
-            keluar: 0,
-            saldo: 0,
-            status: 'DISETUJUI'
-        });
-        
     } else {
         if (amount > currentDeposit) return alert('Penarikan melebihi saldo titipan!');
         STATE.settings.deposits[kioskName] = currentDeposit - amount;
-        
-        // Catat keluar dari Kas Umum otomatis
-        STATE.kas_umum.push({
-            id: generateId('KAS'),
-            date: new Date().toISOString().split('T')[0],
-            desc: `Pengembalian titipan uang ke kios ${kioskName}`,
-            kabupaten: STATE.users.find(u => u.name === kioskName)?.branch || 'PUSAT',
-            masuk: 0,
-            keluar: amount,
-            saldo: 0,
-            status: 'DISETUJUI'
-        });
     }
     
     saveState();
