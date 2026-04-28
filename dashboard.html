@@ -227,13 +227,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Kode</th>
-                            <th>Nama Produk</th>
-                            <th>Harga Beli</th>
-                            <th>Harga Jual</th>
-                            <th>Stok</th>
-                            <th>AKSI</th>
-                        </tr>
+                        <th onclick="handleSort('code')">Kode ${renderSortIcon('code')}</th>
+                        <th onclick="handleSort('name')">Nama Produk ${renderSortIcon('name')}</th>
+                        <th onclick="handleSort('buyPrice')">Harga Beli ${renderSortIcon('buyPrice')}</th>
+                        <th onclick="handleSort('sellPrice')">Harga Jual ${renderSortIcon('sellPrice')}</th>
+                        <th>Stok</th>
+                        <th>AKSI</th>
+                    </tr>
                     </thead>
                     <tbody id="product-table-body"></tbody>
                 </table>
@@ -248,13 +248,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>TANGGAL</th>
-                            <th>ID PYL</th>
-                            <th>KIOS</th>
-                            <th>PRODUK</th>
-                            <th>QTY</th>
-                            <th>TOTAL BAYAR</th>
+                            <th onclick="handleSort('id')">ID ${renderSortIcon('id')}</th>
+                            <th onclick="handleSort('date')">TANGGAL ${renderSortIcon('date')}</th>
+                            <th onclick="handleSort('pylId')">ID PYL ${renderSortIcon('pylId')}</th>
+                            <th onclick="handleSort('kiosk')">KIOS ${renderSortIcon('kiosk')}</th>
+                            <th onclick="handleSort('product')">PRODUK ${renderSortIcon('product')}</th>
+                            <th onclick="handleSort('qty')">QTY ${renderSortIcon('qty')}</th>
+                            <th onclick="handleSort('total')">TOTAL BAYAR ${renderSortIcon('total')}</th>
                             <th>STATUS</th>
                         </tr>
                     </thead>
@@ -287,12 +287,12 @@
             <table>
                 <thead>
                     <tr>
-                        <th>NO DO</th>
-                        <th>TANGGAL</th>
-                        <th>KABUPATEN</th>
-                        <th>PRODUK</th>
-                        <th>QTY (TON)</th>
-                        <th>TOTAL NILAI</th>
+                        <th onclick="handleSort('do')">NO DO ${renderSortIcon('do')}</th>
+                        <th onclick="handleSort('date')">TANGGAL ${renderSortIcon('date')}</th>
+                        <th onclick="handleSort('kabupaten')">KABUPATEN ${renderSortIcon('kabupaten')}</th>
+                        <th onclick="handleSort('product')">PRODUK ${renderSortIcon('product')}</th>
+                        <th onclick="handleSort('qty')">QTY (TON) ${renderSortIcon('qty')}</th>
+                        <th onclick="handleSort('total')">TOTAL NILAI ${renderSortIcon('total')}</th>
                         <th>AKSI</th>
                     </tr>
                 </thead>
@@ -328,10 +328,10 @@
                 <table>
                 <thead>
                     <tr>
-                        <th>TANGGAL</th>
-                        <th>NO DO</th>
-                        <th>PRODUK</th>
-                        <th>QTY KELUAR</th>
+                        <th onclick="handleSort('date')">TANGGAL ${renderSortIcon('date')}</th>
+                        <th onclick="handleSort('do')">NO DO ${renderSortIcon('do')}</th>
+                        <th onclick="handleSort('product')">PRODUK ${renderSortIcon('product')}</th>
+                        <th onclick="handleSort('keluar')">QTY KELUAR ${renderSortIcon('keluar')}</th>
                         <th>SISA STOK DO</th>
                         <th>AKSI</th>
                     </tr>
@@ -367,15 +367,15 @@
             <div class="table-container" style="min-height: 400px;">
                 <table>
                     <thead>
-                        <tr>
-                            <th style="width: 100px;">TANGGAL</th>
-                            <th style="width: 150px;">DO / PENYALURAN</th>
-                            <th>DESKRIPSI / SOPIR</th>
-                            <th style="width: 150px; color: var(--primary);">MASUK</th>
-                            <th style="width: 150px; color: var(--danger);">KELUAR</th>
-                            <th style="width: 100px;">WILAYAH</th>
-                            <th style="width: 80px;">AKSI</th>
-                        </tr>
+                    <tr>
+                        <th style="width: 100px;" onclick="handleSort('date')">TANGGAL ${renderSortIcon('date')}</th>
+                        <th style="width: 150px;" onclick="handleSort('noDo')">DO / PYL ${renderSortIcon('noDo')}</th>
+                        <th onclick="handleSort('desc')">DESKRIPSI / SOPIR ${renderSortIcon('desc')}</th>
+                        <th style="width: 150px; color: var(--primary);" onclick="handleSort('masuk')">MASUK ${renderSortIcon('masuk')}</th>
+                        <th style="width: 150px; color: var(--danger);" onclick="handleSort('keluar')">KELUAR ${renderSortIcon('keluar')}</th>
+                        <th style="width: 100px;" onclick="handleSort('kabupaten')">WILAYAH ${renderSortIcon('kabupaten')}</th>
+                        <th style="width: 80px;">AKSI</th>
+                    </tr>
                     </thead>
                     <tbody id="kas_angkutan-table-body"></tbody>
                 </table>
@@ -405,12 +405,12 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 100px;">TANGGAL</th>
-                            <th>KETERANGAN / WILAYAH</th>
-                            <th style="width: 150px; color: var(--primary);">MASUK</th>
-                            <th style="width: 150px; color: var(--danger);">KELUAR</th>
-                            <th style="width: 80px;">AKSI</th>
-                        </tr>
+                        <th style="width: 100px;" onclick="handleSort('date')">TANGGAL ${renderSortIcon('date')}</th>
+                        <th onclick="handleSort('desc')">KETERANGAN / WILAYAH ${renderSortIcon('desc')}</th>
+                        <th style="width: 150px; color: var(--primary);" onclick="handleSort('masuk')">MASUK ${renderSortIcon('masuk')}</th>
+                        <th style="width: 150px; color: var(--danger);" onclick="handleSort('keluar')">KELUAR ${renderSortIcon('keluar')}</th>
+                        <th style="width: 80px;">AKSI</th>
+                    </tr>
                     </thead>
                     <tbody id="kas_umum-table-body"></tbody>
                 </table>
@@ -434,14 +434,14 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ID PYL</th>
-                        <th>KIOS</th>
-                        <th>PRODUK</th>
-                        <th>QTY (TON)</th>
-                        <th>NOMINAL</th>
-                        <th>SOPIR</th>
-                        <th>PLAT</th>
-                        <th>STATUS</th>
+                        <th onclick="handleSort('id')">ID PYL ${renderSortIcon('id')}</th>
+                        <th onclick="handleSort('kios')">KIOS ${renderSortIcon('kios')}</th>
+                        <th onclick="handleSort('product')">PRODUK ${renderSortIcon('product')}</th>
+                        <th onclick="handleSort('qty')">QTY (TON) ${renderSortIcon('qty')}</th>
+                        <th onclick="handleSort('total')">NOMINAL ${renderSortIcon('total')}</th>
+                        <th onclick="handleSort('driver')">SOPIR ${renderSortIcon('driver')}</th>
+                        <th onclick="handleSort('plat')">PLAT ${renderSortIcon('plat')}</th>
+                        <th onclick="handleSort('status')">STATUS ${renderSortIcon('status')}</th>
                         <th>PEMBAYARAN</th>
                         <th>AKSI</th>
                     </tr>
@@ -642,14 +642,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>No Pesanan</th>
-                            <th>Tanggal</th>
-                            <th>NO Penyaluran</th>
-                            <th>Produk</th>
-                            <th>Harga/Ton</th>
-                            <th>Jumlah</th>
-                            <th>Total</th>
-                            <th>Status</th>
+                            <th onclick="handleSort('id')">No Pesanan ${renderSortIcon('id')}</th>
+                            <th onclick="handleSort('date')">Tanggal ${renderSortIcon('date')}</th>
+                            <th onclick="handleSort('pylId')">NO Penyaluran ${renderSortIcon('pylId')}</th>
+                            <th onclick="handleSort('product')">Produk ${renderSortIcon('product')}</th>
+                            <th onclick="handleSort('price')">Harga/Ton ${renderSortIcon('price')}</th>
+                            <th onclick="handleSort('qty')">Jumlah ${renderSortIcon('qty')}</th>
+                            <th onclick="handleSort('total')">Total ${renderSortIcon('total')}</th>
+                            <th onclick="handleSort('status')">Status ${renderSortIcon('status')}</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -668,14 +668,14 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>No Pesanan</th>
-                            <th>Tanggal</th>
-                            <th>NO DO</th>
-                            <th>Kios</th>
-                            <th>Produk</th>
-                            <th>Jumlah</th>
-                            <th>Total</th>
-                            <th>Status</th>
+                            <th onclick="handleSort('id')">No Pesanan ${renderSortIcon('id')}</th>
+                            <th onclick="handleSort('date')">Tanggal ${renderSortIcon('date')}</th>
+                            <th onclick="handleSort('assignedDO')">NO DO ${renderSortIcon('assignedDO')}</th>
+                            <th onclick="handleSort('kiosk')">Kios ${renderSortIcon('kiosk')}</th>
+                            <th onclick="handleSort('product')">Produk ${renderSortIcon('product')}</th>
+                            <th onclick="handleSort('qty')">Jumlah ${renderSortIcon('qty')}</th>
+                            <th onclick="handleSort('total')">Total ${renderSortIcon('total')}</th>
+                            <th onclick="handleSort('status')">Status ${renderSortIcon('status')}</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>

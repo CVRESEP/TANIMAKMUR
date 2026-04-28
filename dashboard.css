@@ -969,3 +969,35 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
 @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 .mobile-hide { display: block; }
 @media (max-width: 768px) { .mobile-hide { display: none !important; } .user-profile-btn { padding: 4px; border: none; background: transparent; } }
+
+/* Table Sorting */
+th[onclick] {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+    position: relative;
+    white-space: nowrap;
+}
+
+th[onclick]:hover {
+    background: #f1f5f9;
+    color: var(--primary);
+}
+
+.sort-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+}
+
+.sort-icon.inactive {
+    opacity: 0.3;
+}
+
+.sort-icon.active {
+    opacity: 1;
+    color: var(--primary);
+}

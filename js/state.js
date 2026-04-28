@@ -49,6 +49,7 @@ const DEFAULT_STATE = {
         start: '',
         end: ''
     },
+    sortConfig: { column: 'date', order: 'desc' },
     settings: {
         company_name: 'TANI MAKMUR',
         company_address: 'Alamat Perusahaan Belum Diatur',

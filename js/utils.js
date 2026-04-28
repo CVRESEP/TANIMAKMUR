@@ -71,7 +71,57 @@ function getFilteredData(type) {
         });
     }
 
+    // 4. Sorting Logic
+    const { column, order } = STATE.sortConfig;
+    if (column) {
+        filtered.sort((a, b) => {
+            let valA = a[column];
+            let valB = b[column];
+
+            // Handle date sorting
+            if (column === 'date' || column === 'tanggal') {
+                valA = new Date(valA || 0);
+                valB = new Date(valB || 0);
+            }
+
+            // Handle numeric values
+            if (!isNaN(valA) && !isNaN(valB)) {
+                valA = parseFloat(valA);
+                valB = parseFloat(valB);
+            } else {
+                valA = String(valA || '').toLowerCase();
+                valB = String(valB || '').toLowerCase();
+            }
+
+            if (valA < valB) return order === 'asc' ? -1 : 1;
+            if (valA > valB) return order === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
     return filtered;
+}
+
+function handleSort(column, type) {
+    if (STATE.sortConfig.column === column) {
+        STATE.sortConfig.order = STATE.sortConfig.order === 'asc' ? 'desc' : 'asc';
+    } else {
+        STATE.sortConfig.column = column;
+        STATE.sortConfig.order = 'desc'; // Default to desc for new columns
+    }
+    
+    saveState();
+    
+    // Rerender current view
+    const hash = window.location.hash.replace('#', '') || 'dashboard';
+    navigateTo(hash);
+}
+
+function renderSortIcon(column) {
+    if (STATE.sortConfig.column !== column) return '<i data-lucide="chevrons-up-down" class="sort-icon inactive"></i>';
+    return STATE.sortConfig.order === 'asc' 
+        ? '<i data-lucide="chevron-up" class="sort-icon active"></i>' 
+        : '<i data-lucide="chevron-down" class="sort-icon active"></i>';
 }
 
 function updateGlobalBranchFilter(val) {
