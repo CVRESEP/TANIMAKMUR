@@ -26,10 +26,11 @@ function renderDailyReport() {
     const summaryBody = document.getElementById('dr-summary-body');
     if (!tbody || !summaryBody) return;
 
-    const products = STATE.products.filter(p => 
-        selectedBranch === 'ALL' || 
-        (p.branch || '').toUpperCase() === selectedBranch.toUpperCase()
-    );
+    const products = STATE.products.filter(p => {
+        const pBranch = (p.branch || '').toUpperCase();
+        const sBranch = selectedBranch.toUpperCase();
+        return sBranch === 'ALL' || pBranch === sBranch || pBranch === 'ALL' || pBranch === 'SEMUA' || pBranch === '';
+    });
     
     let totalSisaLalu = 0, totalPenyaluran = 0, totalPenebusanTunai = 0, totalStokAkhir = 0;
     let totalHargaStok = 0, totalJualKios = 0, totalPenebusanValue = 0;
@@ -38,11 +39,13 @@ function renderDailyReport() {
         const prodName = p.name;
         const branch = p.branch;
 
+        const targetBranch = selectedBranch === 'ALL' ? (p.branch || '') : selectedBranch;
+
         // 1. SISA LALU (History before selectedDate)
         const prevPurchased = (STATE.penebusan || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
-                (item.kabupaten || '').toUpperCase() === (branch || '').toUpperCase() && 
+                (selectedBranch === 'ALL' || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
                 item.date < selectedDate
             )
             .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
@@ -50,7 +53,7 @@ function renderDailyReport() {
         const prevDispatched = (STATE.penyaluran || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
-                ((item.branch || '').toUpperCase() === (branch || '').toUpperCase() || (item.kabupaten || '').toUpperCase() === (branch || '').toUpperCase()) && 
+                (selectedBranch === 'ALL' || (item.branch || '').toUpperCase() === targetBranch.toUpperCase() || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
                 item.date < selectedDate && 
                 item.status !== 'MENUNGGU PENGIRIMAN'
             )
@@ -62,7 +65,7 @@ function renderDailyReport() {
         const dispatched = (STATE.penyaluran || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
-                ((item.branch || '').toUpperCase() === (branch || '').toUpperCase() || (item.kabupaten || '').toUpperCase() === (branch || '').toUpperCase()) && 
+                (selectedBranch === 'ALL' || (item.branch || '').toUpperCase() === targetBranch.toUpperCase() || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
                 item.date === selectedDate && 
                 item.status !== 'MENUNGGU PENGIRIMAN'
             )
@@ -71,7 +74,7 @@ function renderDailyReport() {
         const purchased = (STATE.penebusan || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
-                (item.kabupaten || '').toUpperCase() === (branch || '').toUpperCase() && 
+                (selectedBranch === 'ALL' || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
                 item.date === selectedDate
             )
             .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
