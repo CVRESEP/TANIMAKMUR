@@ -101,25 +101,36 @@ async function loadFromServer(silent = false) {
 }
 
 function showDatabaseBadge(isOnline) {
-    const old = document.getElementById('db-mode-badge');
-    if (old) old.remove();
+    let badge = document.getElementById('db-mode-badge');
+    if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'db-mode-badge';
+        document.body.appendChild(badge);
+    }
 
-    const badge = document.createElement('div');
-    badge.id = 'db-mode-badge';
     badge.style.cssText = `
         position: fixed; bottom: 16px; left: 16px; z-index: 9999;
         display: flex; align-items: center; gap: 8px;
         padding: 8px 14px; border-radius: 999px;
         font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px;
         box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-        cursor: default;
-        ${isOnline ? 'background: #0369a1; color: #fff;' : 'background: #ef4444; color: #fff;'}
+        transition: all 0.3s ease;
+        ${isOnline ? 'background: #0369a1; color: #fff; cursor: default;' : 'background: #ef4444; color: #fff; cursor: pointer;'}
     `;
+    
     badge.innerHTML = isOnline 
         ? '☁️ Cloud Connected — Turso Sync Aktif' 
-        : '⚠️ Terputus — Periksa Koneksi Internet';
+        : '⚠️ Terputus — Klik untuk Menghubungkan Kembali...';
     
-    document.body.appendChild(badge);
+    badge.onclick = isOnline ? null : () => {
+        badge.innerHTML = '🔄 Mencoba Menghubungkan...';
+        initializeState();
+    };
+}
+
+function updateSyncBadge(status) {
+    if (status === 'offline') showDatabaseBadge(false);
+    if (status === 'online') showDatabaseBadge(true);
 }
 
 function saveState(immediate = false) {
@@ -262,24 +273,31 @@ async function initializeState() {
     }, 30000);
 
     // Ping monitor: cek koneksi ke server setiap 15 detik
+    let pingFailures = 0;
     let wasOffline = false;
+
     setInterval(async () => {
         try {
             const r = await fetch(`${API_BASE}/ping`, { signal: AbortSignal.timeout(5000) });
-            if (r.ok) {
+            const data = await r.json();
+
+            if (r.ok && data.connected) {
+                pingFailures = 0;
                 if (wasOffline) {
                     wasOffline = false;
-                    console.log('[TM CLOUD] ✅ Koneksi pulih. Memuat ulang data...');
+                    console.log('[TM CLOUD] ✅ Koneksi pulih.');
                     await loadFromServer(true);
                     updateSyncBadge('online');
                 }
             } else {
-                throw new Error('ping failed');
+                throw new Error(data.error || 'Database disconnected');
             }
-        } catch {
-            if (!wasOffline) {
+        } catch (err) {
+            pingFailures++;
+            // Hanya anggap offline jika gagal 2x berturut-turut (menghindari flicker internet sesaat)
+            if (pingFailures >= 2 && !wasOffline) {
                 wasOffline = true;
-                console.warn('[TM CLOUD] ⚠️ Server tidak merespons.');
+                console.warn('[TM CLOUD] ⚠️ Server/Database tidak merespons:', err.message);
                 updateSyncBadge('offline');
             }
         }

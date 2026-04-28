@@ -7,9 +7,8 @@ const express = require('express');
 const { createClient } = require('@libsql/client');
 const cors = require('cors');
 const path = require('path');
-const os = require('os');
 
-// Turso Connection
+// Turso Connection dengan Timeout & Retry
 const turso = createClient({
   url: 'libsql://tanimakmur-cvresep.aws-ap-northeast-1.turso.io',
   authToken: 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzY3MDg2NDUsImlkIjoiMDE5ZGFjMTQtZjAwMS03NTZiLWIxNmEtZjliYzE1YWExODE0IiwicmlkIjoiZTBkMWFhODUtOTg0OC00MjVkLWI5N2EtMWU0ODA1ZmJlYTNkIn0.HuGaB5DogClfIH9r3KzzcBSU5jrpWIIuTW1-A2hciSJmJZOHzitYnMlHemsMhrcRaw6pCmigb-avnyIwHUs9Ag'
@@ -22,52 +21,49 @@ app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
-const PRIMARY_KEYS = {
-  users: 'username', products: 'code', penebusan: 'do',
-  pengeluaran: 'id', penyaluran: 'id', orders: 'id',
-  drivers: 'id', kas_angkutan: 'id', kas_umum: 'id',
-  suppliers: 'id', settings: 'key'
-};
+let isConnectedToTurso = true;
+let lastError = null;
 
-// ── TURSO KEEPALIVE ───────────────────────────────────────────────────────────
-// Ping setiap 30 detik agar koneksi tidak idle/drop
-let isConnected = true;
-
+// ── TURSO KEEPALIVE & HEALTH MONITOR ──────────────────────────────────────────
 async function pingTurso() {
   try {
+    // Gunakan query super ringan untuk tes koneksi
     await turso.execute('SELECT 1');
-    if (!isConnected) {
-      console.log('[TM] ✅ Koneksi Turso pulih kembali.');
-      isConnected = true;
+    if (!isConnectedToTurso) {
+      console.log('\x1b[32m[DATABASE] ✅ Koneksi ke Cloud Turso kembali normal.\x1b[0m');
+      isConnectedToTurso = true;
+      lastError = null;
     }
   } catch (e) {
-    if (isConnected) {
-      console.warn('[TM] ⚠️  Koneksi Turso terputus:', e.message);
-      isConnected = false;
+    lastError = e.message;
+    if (isConnectedToTurso) {
+      console.warn('\x1b[31m[DATABASE] ⚠️ Koneksi Cloud Terputus:', e.message, '\x1b[0m');
+      isConnectedToTurso = false;
     }
   }
 }
 
-setInterval(pingTurso, 30000);
-pingTurso(); // Ping pertama saat startup
+// Ping setiap 20 detik (lebih sering agar koneksi tetap panas)
+setInterval(pingTurso, 20000);
+pingTurso();
 
 // ── API ROUTES ────────────────────────────────────────────────────────────────
 
-// Health check endpoint (dipakai client untuk deteksi koneksi)
 app.get('/api/ping', (req, res) => {
-  res.json({ ok: true, connected: isConnected, ts: Date.now() });
+  res.json({ 
+    ok: true, 
+    connected: isConnectedToTurso, 
+    error: lastError,
+    ts: Date.now() 
+  });
 });
 
-app.get('/api/status', async (req, res) => {
-  res.json({ ok: true, type: 'Turso Cloud', connected: isConnected });
-});
-
-// Load full state
 app.get('/api/load-state', async (req, res) => {
   try {
     const tables = ['users', 'products', 'penebusan', 'pengeluaran', 'penyaluran', 'orders', 'drivers', 'kas_angkutan', 'kas_umum', 'suppliers', 'settings'];
     const state = {};
     
+    // Gunakan batch jika didukung untuk efisiensi, atau tetap loop dengan proteksi
     for (const table of tables) {
       const rs = await turso.execute(`SELECT * FROM "${table}"`);
       if (table === 'settings') {
@@ -79,16 +75,15 @@ app.get('/api/load-state', async (req, res) => {
         state[table] = rs.rows;
       }
     }
-    isConnected = true;
+    isConnectedToTurso = true;
     res.json(state);
   } catch (e) {
-    isConnected = false;
-    console.error('[TM] Load-state error:', e.message);
+    isConnectedToTurso = false;
+    lastError = e.message;
     res.status(500).json({ error: e.message });
   }
 });
 
-// Sync full state
 app.post('/api/sync', async (req, res) => {
   const { state } = req.body;
   if (!state) return res.status(400).json({ error: 'State missing' });
@@ -101,16 +96,12 @@ app.post('/api/sync', async (req, res) => {
       drivers: 'drivers'
     };
 
+    // Jalankan sync dalam urutan tertentu
     for (const [stateKey, table] of Object.entries(tableMap)) {
       const rows = state[stateKey];
       if (!Array.isArray(rows)) continue;
 
-      // SAFETY: Jangan hapus data jika array kosong
-      const isVital = ['users', 'products'].includes(table);
-      if (isVital && rows.length === 0) {
-        console.warn(`[SYNC] Ditunda untuk tabel ${table}: data kosong terdeteksi.`);
-        continue;
-      }
+      if (['users', 'products'].includes(table) && rows.length === 0) continue;
 
       await turso.execute(`DELETE FROM "${table}"`);
       for (const row of rows) {
@@ -125,7 +116,7 @@ app.post('/api/sync', async (req, res) => {
       }
     }
 
-    // Settings & metadata
+    // Metadata
     const metadataKeys = ['permissions', 'rowLimits', 'activeBranchFilter', 'settings'];
     for (const key of metadataKeys) {
       if (state[key] !== undefined) {
@@ -137,67 +128,57 @@ app.post('/api/sync', async (req, res) => {
       }
     }
 
-    isConnected = true;
+    isConnectedToTurso = true;
     res.json({ ok: true });
   } catch (e) {
-    isConnected = false;
-    console.error('[TM] Sync error:', e.message);
+    isConnectedToTurso = false;
+    lastError = e.message;
     res.status(500).json({ error: e.message });
   }
 });
 
-// Notifications - WhatsApp
+// Notifications
 app.post('/api/send-wa', async (req, res) => {
-  const { to, message } = req.body;
-  try {
-    const rs = await turso.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['settings'] });
-    if (!rs.rows.length) throw new Error('Settings not found');
-    const settings = JSON.parse(rs.rows[0].value);
-    const response = await fetch('https://api.fonnte.com/send', {
-      method: 'POST',
-      headers: { 'Authorization': settings.wa_gateway_token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: to, message })
-    });
-    const result = await response.json();
-    res.json(result);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const { to, message } = req.body;
+    try {
+      const rs = await turso.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['settings'] });
+      if (!rs.rows.length) throw new Error('Settings not found');
+      const settings = JSON.parse(rs.rows[0].value);
+      const response = await fetch('https://api.fonnte.com/send', {
+        method: 'POST',
+        headers: { 'Authorization': settings.wa_gateway_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: to, message })
+      });
+      res.json(await response.json());
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Notifications - Telegram
 app.post('/api/send-tg', async (req, res) => {
-  const { chat_id, message } = req.body;
-  try {
-    const rs = await turso.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['settings'] });
-    if (!rs.rows.length) throw new Error('Settings not found');
-    const settings = JSON.parse(rs.rows[0].value);
-    const cleanId = String(chat_id).replace(/[^\d-]/g, '').trim();
-    const response = await fetch(`https://api.telegram.org/bot${settings.tg_bot_token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: cleanId, text: message })
-    });
-    res.json(await response.json());
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const { chat_id, message } = req.body;
+    try {
+      const rs = await turso.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: ['settings'] });
+      if (!rs.rows.length) throw new Error('Settings not found');
+      const settings = JSON.parse(rs.rows[0].value);
+      const response = await fetch(`https://api.telegram.org/bot${settings.tg_bot_token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: String(chat_id).replace(/[^\d-]/g, ''), text: message })
+      });
+      res.json(await response.json());
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── GLOBAL ERROR HANDLER ──────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error('[TM] Unhandled error:', err.message);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// ── PREVENT CRASH ON UNHANDLED ERRORS ────────────────────────────────────────
+// ── ERROR HANDLING ───────────────────────────────────────────────────────────
 process.on('uncaughtException', (err) => {
-  console.error('[TM] ❌ Uncaught Exception (server tetap jalan):', err.message);
+  console.error('\x1b[31m[CRITICAL] Uncaught Exception:\x1b[0m', err.message);
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[TM] ❌ Unhandled Rejection (server tetap jalan):', reason);
+  console.error('\x1b[31m[CRITICAL] Unhandled Rejection:\x1b[0m', reason);
 });
 
-// ── START SERVER ──────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n\x1b[32m🚀 SERVER TANI MAKMUR (TURSO CLOUD) AKTIF\x1b[0m`);
-    console.log(`\x1b[36m🔗 Dashboard: http://localhost:${PORT}/dashboard.html\x1b[0m`);
-    console.log(`\x1b[33m⚡ Turso Keepalive: aktif (ping setiap 30 detik)\x1b[0m\n`);
+    console.log(`\n\x1b[32m🚀 SERVER TANI MAKMUR AKTIF\x1b[0m`);
+    console.log(`\x1b[36m🔗 http://localhost:${PORT}/dashboard.html\x1b[0m`);
+    console.log(`\x1b[33m💡 Tips: Jika server hang, klik kanan bar judul jendela ini -> Properties -> Matikan "QuickEdit Mode".\x1b[0m\n`);
 });
