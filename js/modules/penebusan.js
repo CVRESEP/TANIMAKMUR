@@ -35,9 +35,14 @@ function renderPenebusan() {
             <td>${d.qty}</td>
             <td>${formatCurrency(d.total)}</td>
             <td>
-                <button class="action-btn small t-icon" title="Hapus" onclick="deletePenebusan('${d.do}')" style="color: #ff4d4d;">
-                    <i data-lucide="trash-2"></i>
-                </button>
+                <div style="display: flex; gap: 5px;">
+                    <button class="action-btn small t-icon" title="Edit" onclick="openEditPenebusanModal('${d.do}')">
+                        <i data-lucide="edit-3"></i>
+                    </button>
+                    <button class="action-btn small t-icon" title="Hapus" onclick="deletePenebusan('${d.do}')" style="color: #ff4d4d;">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
             </td>
         </tr>
     `).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Belum ada data tersedia</td></tr>`;
@@ -164,4 +169,79 @@ function savePenebusan(e) {
     renderPengeluaran();
     renderDashboard();
     openSuccessModal('PENEBUSAN BERHASIL', `Data penebusan DO <strong>${newPenebusan.do}</strong> berhasil disimpan.`);
+}
+
+function openEditPenebusanModal(doRef) {
+    const d = STATE.penebusan.find(p => p.do === doRef);
+    if (!d) return;
+
+    const products = STATE.products;
+    const content = `
+        <form onsubmit="updatePenebusan(event, '${doRef}')">
+            <div class="form-group">
+                <label>Nomor DO</label>
+                <input type="text" name="do" value="${d.do}" readonly style="background: #f1f5f9;">
+            </div>
+            <div class="form-group">
+                <label>Tanggal</label>
+                <input type="date" name="date" value="${d.date}" required>
+            </div>
+            <div class="form-group">
+                <label>Wilayah</label>
+                <select name="kabupaten" required>
+                    <option value="MAGETAN" ${d.kabupaten === 'MAGETAN' ? 'selected' : ''}>MAGETAN</option>
+                    <option value="SRAGEN" ${d.kabupaten === 'SRAGEN' ? 'selected' : ''}>SRAGEN</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Produk</label>
+                <select name="product" required>
+                    ${products.map(p => `<option value="${p.name}" ${p.name === d.product ? 'selected' : ''}>${p.name}</option>`).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Kuantitas (TON)</label>
+                <input type="number" name="qty" step="0.1" value="${d.qty}" required>
+            </div>
+            <div class="form-group">
+                <label>Total Biaya (Rp)</label>
+                <input type="number" name="total" value="${d.total}" required>
+            </div>
+            <button type="submit" class="action-btn primary" style="width: 100%; margin-top: 15px;">SIMPAN PERUBAHAN</button>
+        </form>
+    `;
+    openModal('Edit Penebusan DO', content);
+}
+
+function updatePenebusan(e, doRef) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const idx = STATE.penebusan.findIndex(p => p.do === doRef);
+    if (idx === -1) return;
+
+    const updated = {
+        ...STATE.penebusan[idx],
+        date: fd.get('date'),
+        kabupaten: fd.get('kabupaten'),
+        product: fd.get('product'),
+        qty: parseFloat(fd.get('qty')),
+        total: parseFloat(fd.get('total'))
+    };
+
+    STATE.penebusan[idx] = updated;
+
+    // Update pengeluaran link if exists
+    const outIdx = STATE.pengeluaran.findIndex(o => o.do === doRef);
+    if (outIdx !== -1) {
+        STATE.pengeluaran[outIdx].date = updated.date;
+        STATE.pengeluaran[outIdx].product = updated.product;
+        STATE.pengeluaran[outIdx].masuk = updated.qty;
+        STATE.pengeluaran[outIdx].kabupaten = updated.kabupaten;
+    }
+
+    saveState();
+    closeModal();
+    renderPenebusan();
+    renderPengeluaran();
+    showToast('Data Penebusan berhasil diupdate');
 }

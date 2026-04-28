@@ -42,9 +42,9 @@ function getFilteredData(type) {
         filtered = filtered.filter(d => {
             let rawBranch = d.branch;
             if (rawBranch === 'ALL' && d.kabupaten) rawBranch = d.kabupaten;
-            let itemBranch = (rawBranch || d.kabupaten || '').trim().toUpperCase();
+            let itemBranch = (rawBranch || d.kabupaten || '').toString().trim().toUpperCase();
             if (itemBranch === '') itemBranch = 'MAGETAN';
-            const filterBranchUpper = filterBranch.toUpperCase();
+            const filterBranchUpper = filterBranch.toString().trim().toUpperCase();
             return itemBranch === filterBranchUpper || itemBranch === 'ALL';
         });
     }

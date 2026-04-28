@@ -245,6 +245,7 @@ function renderApprovals() {
             <tr>
                 <td><strong>${o.id}</strong></td>
                 <td>${formatDate(o.date)}</td>
+                <td>${o.assignedDO || '<span style="color:var(--text-dim);">-</span>'}</td>
                 <td>${o.kiosk}</td>
                 <td>${o.product}</td>
                 <td>${o.qty} Ton</td>
