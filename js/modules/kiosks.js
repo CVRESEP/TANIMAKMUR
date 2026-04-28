@@ -16,7 +16,7 @@ function renderKiosks() {
     if (thead) {
         // Hapus header lama jika ada (untuk re-render)
         const cols = Array.from(thead.querySelectorAll('th'));
-        if (cols.length < 8) { // Jika kolom belum lengkap (Nama, ID, Cabang, Kec, Desa, PIC, Telp, Pass, Kurang Bayar, Aksi)
+        if (cols.length < 9) { // Jika kolom belum lengkap (ditambah Titipan Uang)
             thead.innerHTML = `
                 ${isSelectMode ? '<th class="col-check" style="width: 40px;"><input type="checkbox" onclick="toggleSelectAll(this)"></th>' : ''}
                 <th>NAMA KIOS</th>
@@ -24,8 +24,9 @@ function renderKiosks() {
                 <th>CABANG</th>
                 <th>KECAMATAN</th>
                 <th>PIC / PEMILIK</th>
+                <th class="text-right">TITIPAN (SALDO)</th>
                 <th class="text-right">KURANG BAYAR</th>
-                <th style="width: 120px;">AKSI</th>
+                <th style="width: 130px;">AKSI</th>
             `;
         }
     }
@@ -39,6 +40,11 @@ function renderKiosks() {
             .filter(o => o.kiosk === k.name && o.status !== 'LUNAS')
             .reduce((sum, o) => round2(sum + ((parseFloat(o.total) || 0) - (parseFloat(o.paidAmount) || 0))), 0);
 
+        // Saldo Titipan Uang
+        if (!STATE.settings) STATE.settings = {};
+        if (!STATE.settings.deposits) STATE.settings.deposits = {};
+        const depositAmount = STATE.settings.deposits[k.name] || 0;
+
         return `
             <tr>
                 ${isSelectMode ? `<td><input type="checkbox" class="row-checkbox" value="${k.username}"></td>` : ''}
@@ -48,12 +54,20 @@ function renderKiosks() {
                 <td>${k.kecamatan || '-'}</td>
                 <td>${k.pic || '-'}</td>
                 <td class="text-right">
+                    <span style="font-weight:700; color: ${depositAmount > 0 ? 'var(--primary)' : 'var(--text-dim)'};">
+                        ${formatCurrency(depositAmount)}
+                    </span>
+                </td>
+                <td class="text-right">
                     <span class="badge ${unpaidTotal > 0 ? 'status-red' : 'status-green'}" style="font-weight:700;">
                         ${unpaidTotal > 0 ? formatCurrency(unpaidTotal) : 'LUNAS'}
                     </span>
                 </td>
                 <td>
                     <div style="display: flex; gap: 5px; justify-content: flex-end;">
+                        <button class="action-btn small t-icon" title="Kelola Titipan Uang" onclick="openDepositModal('${k.username}')" style="color: var(--primary);">
+                            <i data-lucide="wallet"></i>
+                        </button>
                         <button class="action-btn small t-icon" title="Lihat Detail Pesanan" onclick="viewKioskOrders('${k.name}')">
                             <i data-lucide="history"></i>
                         </button>
@@ -226,6 +240,91 @@ function deleteKiosk(username) {
         renderKiosks();
         openSuccessModal('KIOS DIHAPUS', 'Data kios telah dihapus dari sistem.');
     }
+}
+
+function openDepositModal(username) {
+    const kiosk = STATE.users.find(u => u.username === username);
+    if (!kiosk) return;
+    
+    if (!STATE.settings.deposits) STATE.settings.deposits = {};
+    const currentDeposit = STATE.settings.deposits[kiosk.name] || 0;
+
+    const content = `
+        <form onsubmit="saveDeposit(event, '${kiosk.name}')">
+            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; text-align: center;">
+                <div style="color: var(--text-dim); font-size: 0.85rem; font-weight: 600; margin-bottom: 5px;">SALDO TITIPAN SAAT INI</div>
+                <div style="font-size: 2rem; font-weight: 800; color: var(--primary);">${formatCurrency(currentDeposit)}</div>
+            </div>
+
+            <div class="form-group">
+                <label>Jenis Transaksi</label>
+                <select id="deposit-type" required>
+                    <option value="ADD">Tambah Titipan (Kios Setor Uang)</option>
+                    <option value="SUB">Tarik Titipan (Kembalikan Uang Kios)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Nominal Uang</label>
+                <input type="text" id="deposit-amount" oninput="this.value = formatNumberInput(this.value)" placeholder="Masukkan nominal..." required style="font-size: 1.2rem; font-weight: bold; color: var(--primary);">
+            </div>
+            
+            <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; height: 50px; font-weight: bold;">
+                <i data-lucide="save"></i> SIMPAN TRANSAKSI
+            </button>
+        </form>
+    `;
+    openModal(`Kelola Titipan - ${kiosk.name}`, content);
+}
+
+function saveDeposit(e, kioskName) {
+    e.preventDefault();
+    const type = document.getElementById('deposit-type').value;
+    const amountVal = document.getElementById('deposit-amount').value.replace(/\./g, '');
+    const amount = parseFloat(amountVal);
+    
+    if (isNaN(amount) || amount <= 0) return alert('Nominal tidak valid!');
+    
+    if (!STATE.settings.deposits) STATE.settings.deposits = {};
+    let currentDeposit = STATE.settings.deposits[kioskName] || 0;
+    
+    if (type === 'ADD') {
+        STATE.settings.deposits[kioskName] = currentDeposit + amount;
+        
+        // Catat masuk ke Kas Umum otomatis
+        STATE.kas_umum.push({
+            id: generateId('KAS'),
+            date: new Date().toISOString().split('T')[0],
+            desc: `Titipan uang dari kios ${kioskName}`,
+            kabupaten: STATE.users.find(u => u.name === kioskName)?.branch || 'PUSAT',
+            masuk: amount,
+            keluar: 0,
+            saldo: 0,
+            status: 'DISETUJUI'
+        });
+        
+    } else {
+        if (amount > currentDeposit) return alert('Penarikan melebihi saldo titipan!');
+        STATE.settings.deposits[kioskName] = currentDeposit - amount;
+        
+        // Catat keluar dari Kas Umum otomatis
+        STATE.kas_umum.push({
+            id: generateId('KAS'),
+            date: new Date().toISOString().split('T')[0],
+            desc: `Pengembalian titipan uang ke kios ${kioskName}`,
+            kabupaten: STATE.users.find(u => u.name === kioskName)?.branch || 'PUSAT',
+            masuk: 0,
+            keluar: amount,
+            saldo: 0,
+            status: 'DISETUJUI'
+        });
+    }
+    
+    saveState();
+    closeModal();
+    renderKiosks();
+    if (typeof renderKasUmum === 'function') renderKasUmum();
+    openSuccessModal('TITIPAN DIPERBARUI', `Saldo titipan kios <strong>${kioskName}</strong> berhasil diperbarui menjadi ${formatCurrency(STATE.settings.deposits[kioskName])}.`);
 }
 
 function viewKioskOrders(kioskName) {

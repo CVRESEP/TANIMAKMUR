@@ -351,6 +351,8 @@ function openPaymentDialog(id) {
     const paid = parseFloat(order.paidAmount) || 0;
     const remaining = round2(total - paid);
 
+    const depositAmount = (STATE.settings && STATE.settings.deposits) ? (STATE.settings.deposits[order.kiosk] || 0) : 0;
+
     const content = `
         <form onsubmit="processPayment(event, '${id}')">
             <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
@@ -368,6 +370,19 @@ function openPaymentDialog(id) {
                     <span style="font-weight: 800; color: var(--danger); font-size: 1.1rem;">${formatCurrency(remaining)}</span>
                 </div>
             </div>
+            
+            ${depositAmount > 0 ? `
+                <div style="background: #eff6ff; padding: 12px; border-radius: 8px; border: 1px solid #bfdbfe; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 0.8rem; font-weight: 700; color: #1e40af;">SALDO TITIPAN KIOS</div>
+                        <div style="font-size: 1.1rem; font-weight: 800; color: #1d4ed8;">${formatCurrency(depositAmount)}</div>
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: #1e40af; font-size: 0.85rem;">
+                        <input type="checkbox" id="use-deposit" style="width: 18px; height: 18px;" onchange="toggleDepositInput(this, ${depositAmount}, ${remaining})">
+                        Gunakan Saldo
+                    </label>
+                </div>
+            ` : ''}
 
             <div class="form-group">
                 <label>Nominal Pembayaran Sekarang</label>
@@ -385,6 +400,23 @@ function openPaymentDialog(id) {
         </form>
     `;
     openModal('Pembayaran / Cicilan', content);
+    
+    // Inject the toggle function if it doesn't exist
+    if (!window.toggleDepositInput) {
+        window.toggleDepositInput = function(checkbox, maxDeposit, maxBill) {
+            const input = document.getElementById('payment-input');
+            if (checkbox.checked) {
+                const autoFill = Math.min(maxDeposit, maxBill);
+                input.value = formatNumberInput(autoFill.toString());
+                input.readOnly = true;
+                input.style.background = '#f1f5f9';
+            } else {
+                input.value = '';
+                input.readOnly = false;
+                input.style.background = 'white';
+            }
+        };
+    }
 }
 
 function processPayment(e, id) {
@@ -395,6 +427,31 @@ function processPayment(e, id) {
     const inputVal = document.getElementById('payment-input').value.replace(/\./g, '');
     const amount = parseFloat(inputVal);
     if (isNaN(amount) || amount <= 0) return alert('Nominal tidak valid!');
+
+    const useDepositEl = document.getElementById('use-deposit');
+    const isUsingDeposit = useDepositEl && useDepositEl.checked;
+    
+    if (isUsingDeposit) {
+        let currentDeposit = STATE.settings.deposits[order.kiosk] || 0;
+        if (amount > currentDeposit) return alert('Saldo Titipan tidak cukup!');
+        
+        // Kurangi saldo titipan
+        STATE.settings.deposits[order.kiosk] = currentDeposit - amount;
+        
+        // Jika pakai titipan, catat pengurangan (kas keluar) dari Kas Umum,
+        // karena uang titipan sebelumnya dicatat sebagai uang fisik di Kas Umum.
+        // Sekarang uang itu "dipakai" untuk bayar DO, jadi kas umum secara administratif 
+        // harus disesuaikan jika ingin detail. Tapi tunggu!
+        // Uang Titipan sudah ada di Kas Umum (Tunai). Uang DO juga seharusnya masuk Kas Umum.
+        // Karena Kios pakai Uang Titipan untuk bayar DO, maka secara kas fisik TIDAK ADA PERGERAKAN UANG.
+        // Uang DO = Uang Titipan.
+        // Oleh karena itu, kita tidak perlu memodifikasi Kas Umum lagi. 
+        // Pembayaran DO terekam di Orders, dan Hutang Titipan kita ke Kios berkurang.
+    } else {
+        // Jika bayar fresh cash (TIDAK PAKAI TITIPAN)
+        // Kalau sistem mencatat DO ke Kas Umum, maka tambahkan ke sini.
+        // (Berdasarkan audit, DO di Tani Makmur tidak otomatis masuk Kas Umum, hanya terekap di Laporan)
+    }
 
     const total = parseFloat(order.total) || 0;
     let paid = parseFloat(order.paidAmount) || 0;
