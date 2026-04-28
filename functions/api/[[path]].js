@@ -27,6 +27,26 @@ export async function onRequest(context) {
         return data.results.map(r => r.response?.result || r.response || r);
     }
 
+    // ── PING / HEALTH CHECK ────────────────────────────────────────────────────
+    if (path.endsWith('/api/ping')) {
+        try {
+            await queryTurso([{ q: 'SELECT 1' }]);
+            return new Response(JSON.stringify({ 
+                ok: true, 
+                connected: true, 
+                error: null,
+                ts: Date.now() 
+            }), { headers: { 'Content-Type': 'application/json' } });
+        } catch (e) {
+            return new Response(JSON.stringify({ 
+                ok: true, 
+                connected: false, 
+                error: String(e),
+                ts: Date.now() 
+            }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        }
+    }
+
     // ── LOAD STATE ─────────────────────────────────────────────────────────────
     if (path.endsWith('/api/load-state')) {
         try {
