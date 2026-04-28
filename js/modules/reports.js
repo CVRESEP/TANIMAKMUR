@@ -26,11 +26,10 @@ function renderDailyReport() {
     const summaryBody = document.getElementById('dr-summary-body');
     if (!tbody || !summaryBody) return;
 
-    const products = STATE.products.filter(p => {
-        const pBranch = (p.branch || '').toUpperCase();
-        const sBranch = selectedBranch.toUpperCase();
-        return sBranch === 'ALL' || pBranch === sBranch || pBranch === 'ALL' || pBranch === 'SEMUA' || pBranch === '';
-    });
+    const products = STATE.products.filter(p => 
+        selectedBranch === 'ALL' || 
+        (p.branch || '').toUpperCase() === selectedBranch.toUpperCase()
+    );
     
     let totalSisaLalu = 0, totalPenyaluran = 0, totalPenebusanTunai = 0, totalStokAkhir = 0;
     let totalHargaStok = 0, totalJualKios = 0, totalPenebusanValue = 0;
