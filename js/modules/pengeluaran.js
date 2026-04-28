@@ -30,25 +30,11 @@ function renderPengeluaran() {
     }
 
     const allData = getFilteredData('pengeluaran');
-    const data = paginateData(allData, 'pengeluaran');
     renderSelectionActions('pengeluaran');
     const isSelectMode = STATE.uiSelectionMode['pengeluaran'];
 
-    // Update Header
-    const table = tbody.closest('table');
-    const thead = table.querySelector('thead tr');
-    if (thead) {
-        const hasCheck = thead.querySelector('.col-check');
-        if (isSelectMode && !hasCheck) {
-            thead.insertAdjacentHTML('afterbegin', `
-                <th class="col-check" style="width: 40px;">
-                    <input type="checkbox" onclick="toggleSelectAll(this)">
-                </th>
-            `);
-        } else if (!isSelectMode && hasCheck) {
-            hasCheck.remove();
-        }
-    }
+    // Update Header done after computing data below
+
 
     // Inject computed sisaStok field for sorting
     const allDataWithSisa = allData.map(d => {
@@ -68,18 +54,31 @@ function renderPengeluaran() {
 
     const data = paginateData(sortedData, 'pengeluaran');
 
-    // Inject SISA STOK sort header if not present
+    // Update Header (checkbox for selection mode)
     const table = tbody.closest('table');
     const thead = table ? table.querySelector('thead tr') : null;
-    if (thead && !thead.querySelector('.th-sisa-stok')) {
-        // Find the SISA STOK header and add onclick
-        Array.from(thead.querySelectorAll('th')).forEach(th => {
-            if (th.textContent.trim().startsWith('SISA')) {
-                th.classList.add('th-sisa-stok');
-                th.style.cursor = 'pointer';
-                th.setAttribute('onclick', "handleSort('sisaStok')");
-            }
-        });
+    if (thead) {
+        const hasCheck = thead.querySelector('.col-check');
+        if (isSelectMode && !hasCheck) {
+            thead.insertAdjacentHTML('afterbegin', `
+                <th class="col-check" style="width: 40px;">
+                    <input type="checkbox" onclick="toggleSelectAll(this)">
+                </th>
+            `);
+        } else if (!isSelectMode && hasCheck) {
+            hasCheck.remove();
+        }
+
+        // Inject SISA STOK sort header onclick if not present
+        if (!thead.querySelector('.th-sisa-stok')) {
+            Array.from(thead.querySelectorAll('th')).forEach(th => {
+                if (th.textContent.trim().startsWith('SISA')) {
+                    th.classList.add('th-sisa-stok');
+                    th.style.cursor = 'pointer';
+                    th.setAttribute('onclick', "handleSort('sisaStok')");
+                }
+            });
+        }
     }
 
     tbody.innerHTML = data.map(d => {
