@@ -4,11 +4,12 @@ function renderPayments() {
     if (!tbody) return;
 
     // Payments are settled orders from Kiosks
-    // We filter based on branch if distributor/admin
-    const userBranch = STATE.currentUser.branch;
+    // Use activeBranchFilter for OWNER/MANAJER, otherwise use the user's assigned branch
+    const user = STATE.currentUser;
+    const effectiveBranch = user.branch === 'ALL' ? (STATE.activeBranchFilter || 'ALL') : user.branch;
     const settledOrders = STATE.orders.filter(o => 
         (o.status === 'APPROVED' || o.status === 'LUNAS') && 
-        (userBranch === 'ALL' || o.branch === userBranch)
+        (effectiveBranch === 'ALL' || (o.branch || '').toUpperCase() === effectiveBranch.toUpperCase())
     );
 
     const data = paginateData(settledOrders, 'payments');

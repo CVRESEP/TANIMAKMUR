@@ -6,11 +6,15 @@ function renderPengeluaran() {
     
     // Render Summary
     if (summaryGrid) {
-        summaryGrid.innerHTML = STATE.products.map(p => {
-            const rows = STATE.pengeluaran.filter(out => out.product === p.name);
+        const filteredPengeluaran = getFilteredData('pengeluaran');
+        const filteredPenyaluran = getFilteredData('penyaluran');
+        const filteredProducts = getFilteredData('products');
+
+        summaryGrid.innerHTML = filteredProducts.map(p => {
+            const rows = filteredPengeluaran.filter(out => out.product === p.name);
             const totalKeluar = rows.reduce((sum, r) => sum + (parseFloat(r.keluar) || 0), 0);
             
-            const totalSalur = STATE.penyaluran
+            const totalSalur = filteredPenyaluran
                 .filter(pyl => pyl.product === p.name && pyl.status !== 'MENUNGGU PENGIRIMAN')
                 .reduce((sum, pyl) => sum + (parseFloat(pyl.qty) || 0), 0);
             

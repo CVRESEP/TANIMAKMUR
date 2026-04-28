@@ -15,13 +15,14 @@ function formatDate(isoDate) {
 
 function calculateStock(productName) {
     if (!STATE.pengeluaran || !STATE.penyaluran) return 0;
+    const pNameUpper = (productName || '').toUpperCase();
     
     const totalOut = STATE.pengeluaran
-        .filter(p => p.product === productName)
+        .filter(p => (p.product || '').toUpperCase() === pNameUpper)
         .reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
     
     const totalDispatched = STATE.penyaluran
-        .filter(p => p.product === productName && p.status !== 'MENUNGGU PENGIRIMAN')
+        .filter(p => (p.product || '').toUpperCase() === pNameUpper && p.status !== 'MENUNGGU PENGIRIMAN')
         .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
         
     return totalOut - totalDispatched;

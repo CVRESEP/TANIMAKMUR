@@ -35,6 +35,7 @@ function renderPenyaluran() {
             <tr>
                 ${isSelectMode ? `<td><input type="checkbox" class="row-checkbox" value="${p.id}"></td>` : ''}
                 <td><code>${p.id}</code></td>
+                <td>${formatDate(p.date)}</td>
                 <td><strong>${p.kios}</strong></td>
                 <td>${p.product}</td>
                 <td>${p.qty} Ton</td>

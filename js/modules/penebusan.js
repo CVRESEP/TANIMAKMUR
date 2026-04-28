@@ -93,13 +93,19 @@ function openAddPenebusanModal() {
                 <input type="date" name="date" value="${new Date().toISOString().split('T')[0]}" required>
             </div>
             <div class="form-group">
-                <label>Pilih Produk</label>
-                <select name="product_code" id="penebusan-product" onchange="calculatePenebusanTotal()" required>
-                    <option value="" disabled selected>Pilih Produk...</option>
-                    ${products.map(p => `<option value="${p.code}">${p.name} [${p.branch}] (${formatCurrency(p.buyPrice || p.price)}/${p.unit})</option>`).join('')}
+                <label>Pilih Wilayah (Kabupaten)</label>
+                <select name="kabupaten" id="penebusan-branch" onchange="updateModalProductList(this.value, 'penebusan-product')" required>
+                    <option value="" disabled selected>Pilih Wilayah...</option>
+                    <option value="MAGETAN">MAGETAN</option>
+                    <option value="SRAGEN">SRAGEN</option>
                 </select>
             </div>
-            ${renderBranchSelector('kabupaten', '', 'Pilih Wilayah (Kabupaten)')}
+            <div class="form-group">
+                <label>Pilih Produk</label>
+                <select name="product_code" id="penebusan-product" onchange="calculatePenebusanTotal()" required>
+                    <option value="" disabled selected>Pilih Wilayah dahulu...</option>
+                </select>
+            </div>
             <div class="form-group">
                 <label>Kuantitas (TON)</label>
                 <input type="number" name="qty" id="penebusan-qty" step="0.1" oninput="calculatePenebusanTotal()" placeholder="0.0" required>
@@ -114,6 +120,16 @@ function openAddPenebusanModal() {
         </form>
     `;
     openModal('Tambah Penebusan DO Baru', content);
+}
+
+function updateModalProductList(branch, selectId, currentValue = '') {
+    const selectEl = document.getElementById(selectId);
+    if (!selectEl) return;
+
+    const filtered = STATE.products.filter(p => (p.branch || '').toUpperCase() === branch.toUpperCase());
+    
+    selectEl.innerHTML = `<option value="" disabled ${!currentValue ? 'selected' : ''}>Pilih Produk...</option>` + 
+        filtered.map(p => `<option value="${p.code}" ${p.name === currentValue || p.code === currentValue ? 'selected' : ''}>${p.name}</option>`).join('');
 }
 
 function calculatePenebusanTotal() {
@@ -175,7 +191,7 @@ function openEditPenebusanModal(doRef) {
     const d = STATE.penebusan.find(p => p.do === doRef);
     if (!d) return;
 
-    const products = STATE.products;
+    const products = STATE.products.filter(p => (p.branch || '').toUpperCase() === (d.kabupaten || '').toUpperCase());
     const content = `
         <form onsubmit="updatePenebusan(event, '${doRef}')">
             <div class="form-group">
@@ -188,15 +204,15 @@ function openEditPenebusanModal(doRef) {
             </div>
             <div class="form-group">
                 <label>Wilayah</label>
-                <select name="kabupaten" required>
+                <select name="kabupaten" onchange="updateModalProductList(this.value, 'edit-penebusan-product')" required>
                     <option value="MAGETAN" ${d.kabupaten === 'MAGETAN' ? 'selected' : ''}>MAGETAN</option>
                     <option value="SRAGEN" ${d.kabupaten === 'SRAGEN' ? 'selected' : ''}>SRAGEN</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Produk</label>
-                <select name="product" required>
-                    ${products.map(p => `<option value="${p.name}" ${p.name === d.product ? 'selected' : ''}>${p.name}</option>`).join('')}
+                <select name="product_code" id="edit-penebusan-product" required>
+                    ${products.map(p => `<option value="${p.code}" ${p.name === d.product ? 'selected' : ''}>${p.name}</option>`).join('')}
                 </select>
             </div>
             <div class="form-group">
@@ -219,11 +235,14 @@ function updatePenebusan(e, doRef) {
     const idx = STATE.penebusan.findIndex(p => p.do === doRef);
     if (idx === -1) return;
 
+    const productCode = fd.get('product_code');
+    const product = STATE.products.find(p => p.code === productCode);
+    
     const updated = {
         ...STATE.penebusan[idx],
         date: fd.get('date'),
         kabupaten: fd.get('kabupaten'),
-        product: fd.get('product'),
+        product: product ? product.name : fd.get('product_code'),
         qty: parseFloat(fd.get('qty')),
         total: parseFloat(fd.get('total'))
     };

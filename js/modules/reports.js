@@ -130,7 +130,7 @@ function renderDailyReport() {
     tbody.innerHTML = rows.join('');
 
     // --- SUMMARY FOOTER CALCULATIONS ---
-    const isBranchMatch = (itemBranch) => selectedBranch === 'ALL' || itemBranch === selectedBranch;
+    const isBranchMatch = (itemBranch) => selectedBranch === 'ALL' || (itemBranch || '').toUpperCase() === selectedBranch.toUpperCase();
 
     const prevSales = STATE.orders
         .filter(o => isBranchMatch(o.branch) && o.date < selectedDate && o.status !== 'DIBATALKAN')

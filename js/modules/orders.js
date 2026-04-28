@@ -47,7 +47,7 @@ function renderOrdersKiosk() {
         `;
     }).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 40px; color: var(--text-dim);">Belum ada riwayat pesanan</td></tr>`;
 
-    lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     const wrapper = tbody.closest('.table-container');
     if (wrapper) {
