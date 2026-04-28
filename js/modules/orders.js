@@ -229,8 +229,8 @@ function renderApprovals() {
             `;
         } else if (o.status === 'MENUNGGU KONFIRMASI PEMBAYARAN' || o.status === 'MENUNGGU PEMBAYARAN') {
             actionBtn = `
-                <button class="action-btn small success" onclick="confirmOrder('${o.id}', 'APPROVED')" style="background: #108040; color: white; border: none;">
-                    <i data-lucide="dollar-sign"></i> ${o.status === 'MENUNGGU PEMBAYARAN' ? 'BAYAR SEKARANG' : 'KONFIRMASI BAYAR'}
+                <button class="action-btn small success" onclick="openPaymentDialog('${o.id}')" style="background: #108040; color: white; border: none;">
+                    <i data-lucide="dollar-sign"></i> ${o.status === 'MENUNGGU PEMBAYARAN' ? 'BAYAR / CICIL' : 'KONFIRMASI BAYAR'}
                 </button>
             `;
         }
@@ -265,11 +265,11 @@ function renderApprovals() {
                                     <i data-lucide="x-circle"></i> Tolak Pesanan
                                 </button>
                             ` : ''}
-                            ${['MENUNGGU PEMBAYARAN', 'MENUNGGU KONFIRMASI PEMBAYARAN'].includes(o.status.trim().toUpperCase()) ? `
-                                <button onclick="confirmOrder('${o.id}', 'APPROVED')" style="color: var(--primary); font-weight: 600;">
-                                    <i data-lucide="dollar-sign"></i> Bayar Melalui Admin
+                            ${(!['MENUNGGU PEMBAYARAN', 'MENUNGGU KONFIRMASI PEMBAYARAN'].includes(o.status.trim().toUpperCase())) ? '' : `
+                                <button onclick="openPaymentDialog('${o.id}')" style="color: var(--primary); font-weight: 600;">
+                                    <i data-lucide="dollar-sign" style="width: 14px; margin-right: 4px;"></i> Bayar/Cicil
                                 </button>
-                            ` : ''}
+                            `}
                             <button onclick="deleteOrder('${o.id}')" style="color: #ef4444;">
                                 <i data-lucide="trash-2"></i> Hapus Pesanan
                             </button>
@@ -343,16 +343,94 @@ function saveApprovalDirectDispatch(e, orderId) {
     }
 }
 
+function openPaymentDialog(id) {
+    const order = STATE.orders.find(o => o.id === id);
+    if (!order) return;
+
+    const total = parseFloat(order.total) || 0;
+    const paid = parseFloat(order.paidAmount) || 0;
+    const remaining = round2(total - paid);
+
+    const content = `
+        <form onsubmit="processPayment(event, '${id}')">
+            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="color: var(--text-dim); font-size: 0.85rem; font-weight: 600;">TOTAL TAGIHAN:</span>
+                    <span style="font-weight: 700;">${formatCurrency(total)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="color: var(--text-dim); font-size: 0.85rem; font-weight: 600;">SUDAH DIBAYAR:</span>
+                    <span style="font-weight: 700; color: var(--success);">${formatCurrency(paid)}</span>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 10px 0;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--danger); font-size: 0.9rem; font-weight: 800;">SISA TAGIHAN:</span>
+                    <span style="font-weight: 800; color: var(--danger); font-size: 1.1rem;">${formatCurrency(remaining)}</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Nominal Pembayaran Sekarang</label>
+                <input type="text" id="payment-input" oninput="this.value = formatNumberInput(this.value)" placeholder="Masukkan nominal pembayaran..." required style="font-size: 1.2rem; font-weight: bold; color: var(--primary);">
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="action-btn" onclick="document.getElementById('payment-input').value = formatNumberInput('${remaining}')" style="background: #e2e8f0; color: #475569;">
+                    LUNASI SEMUA
+                </button>
+                <button type="submit" class="action-btn primary" style="flex: 1; justify-content: center; background: #10b981; border-color: #059669;">
+                    <i data-lucide="check"></i> PROSES PEMBAYARAN
+                </button>
+            </div>
+        </form>
+    `;
+    openModal('Pembayaran / Cicilan', content);
+}
+
+function processPayment(e, id) {
+    e.preventDefault();
+    const order = STATE.orders.find(o => o.id === id);
+    if (!order) return;
+
+    const inputVal = document.getElementById('payment-input').value.replace(/\./g, '');
+    const amount = parseFloat(inputVal);
+    if (isNaN(amount) || amount <= 0) return alert('Nominal tidak valid!');
+
+    const total = parseFloat(order.total) || 0;
+    let paid = parseFloat(order.paidAmount) || 0;
+    
+    paid = round2(paid + amount);
+    if (paid > total) paid = total; // Jangan lebih dari total
+
+    order.paidAmount = paid;
+    
+    if (paid >= total) {
+        order.status = 'LUNAS';
+        order.paymentDate = new Date().toISOString().split('T')[0];
+    } else {
+        order.status = 'MENUNGGU PEMBAYARAN'; // Kembali ke status ini jika baru cicil
+    }
+
+    saveState();
+    closeModal();
+    renderApprovals();
+    if (typeof renderPayments === 'function') renderPayments();
+    
+    const sisa = total - paid;
+    openSuccessModal('PEMBAYARAN BERHASIL', `
+        Pembayaran sebesar <strong>${formatCurrency(amount)}</strong> telah dicatat.<br>
+        Status: <strong>${order.status}</strong><br>
+        ${sisa > 0 ? `Sisa Tagihan: <strong style="color:red;">${formatCurrency(sisa)}</strong>` : ''}
+    `);
+}
+
 function confirmOrder(id, nextStatus) {
     const order = STATE.orders.find(o => o.id === id);
     if (!order) return;
 
     if (nextStatus === 'APPROVED') {
-        order.status = 'LUNAS';
-        order.paymentDate = new Date().toISOString().split('T')[0];
-        saveState();
-        renderApprovals();
-        openSuccessModal('PEMBAYARAN DIKONFIRMASI', `Pesanan <strong>${id}</strong> telah dinyatakan LUNAS.`);
+        // Fallback untuk fungsi lama jika masih ada yang memanggil
+        openPaymentDialog(id);
         return;
     }
 

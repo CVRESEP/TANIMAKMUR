@@ -37,7 +37,7 @@ function renderKiosks() {
         // Hitung total hutang (Belum Lunas)
         const unpaidTotal = STATE.orders
             .filter(o => o.kiosk === k.name && o.status !== 'LUNAS')
-            .reduce((sum, o) => round2(sum + (parseFloat(o.total) || 0)), 0);
+            .reduce((sum, o) => round2(sum + ((parseFloat(o.total) || 0) - (parseFloat(o.paidAmount) || 0))), 0);
 
         return `
             <tr>

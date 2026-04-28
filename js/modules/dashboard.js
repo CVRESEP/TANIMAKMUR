@@ -65,7 +65,23 @@ function renderDashboard() {
         const myOrders = STATE.orders.filter(o => o.kiosk === STATE.currentUser.name && isWithinRange(o.date));
         const totalOrdered = round2(myOrders.reduce((sum, o) => round2(sum + (parseFloat(o.qty) || 0)), 0));
         const pendingCount = myOrders.filter(o => o.status === 'MENUNGGU PERSETUJUAN').length;
-        const totalPaid = round2(myOrders.filter(o => o.status === 'LUNAS').reduce((sum, o) => round2(sum + (parseFloat(o.total) || 0)), 0));
+        
+        // Total Pembayaran yang sudah masuk (Lunas maupun Cicilan)
+        const totalPaid = round2(myOrders.reduce((sum, o) => {
+            const paid = o.paidAmount !== undefined 
+                ? parseFloat(o.paidAmount) 
+                : (o.status === 'LUNAS' ? parseFloat(o.total) : 0);
+            return sum + (paid || 0);
+        }, 0));
+
+        // Total Belum Lunas Kios (Piutang)
+        const totalDebt = round2(myOrders
+            .filter(o => o.status !== 'LUNAS' && o.status !== 'MENUNGGU PERSETUJUAN' && o.status !== 'DITOLAK')
+            .reduce((sum, o) => {
+                const total = parseFloat(o.total) || 0;
+                const paid = parseFloat(o.paidAmount) || 0;
+                return sum + (total - paid);
+            }, 0));
 
         const stats = [
             { title: 'TOTAL PESANAN', value: `${totalOrdered.toFixed(1)} TON`, color: 'var(--primary)', icon: 'shopping-bag' },

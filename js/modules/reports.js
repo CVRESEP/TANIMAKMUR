@@ -138,11 +138,13 @@ function renderDailyReport() {
         .reduce((sum, o) => sum + (o.total || 0), 0);
     
     const allPayments = STATE.orders
-        .filter(o => o.status === 'LUNAS' || o.status === 'APPROVED')
+        .filter(o => (o.paidAmount && o.paidAmount > 0) || o.status === 'LUNAS' || o.status === 'APPROVED')
         .map(o => ({
             branch: o.branch,
             date: o.paymentDate || o.date,
-            amount: o.total || 0
+            amount: o.paidAmount !== undefined 
+                ? parseFloat(o.paidAmount) 
+                : ((o.status === 'LUNAS' || o.status === 'APPROVED') ? parseFloat(o.total) : 0)
         }));
 
     const prevPayments = allPayments
