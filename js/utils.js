@@ -316,31 +316,57 @@ function renderRowLimitSelector(type) {
 let searchTimer;
 function handleSearch(val) {
     clearTimeout(searchTimer);
-    // Store current value immediately so it's visible while debouncing
     STATE.globalSearch = val;
     searchTimer = setTimeout(() => {
-        // Reset page ke 1 saat cari
         Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
+        
+        // Render ulang tabel saja, jangan reload seluruh DOM halaman
         const hash = window.location.hash.replace('#', '') || 'dashboard';
-        navigateTo(hash);
-        // Kembalikan fokus ke input pencarian setelah re-render
+        const renderers = {
+            'dashboard': typeof renderDashboard === 'function' ? renderDashboard : null,
+            'products': typeof renderProducts === 'function' ? renderProducts : null,
+            'penebusan': typeof renderPenebusan === 'function' ? renderPenebusan : null,
+            'pengeluaran': typeof renderPengeluaran === 'function' ? renderPengeluaran : null,
+            'penyaluran': typeof renderPenyaluran === 'function' ? renderPenyaluran : null,
+            'payments': typeof renderPayments === 'function' ? renderPayments : null,
+            'reports': typeof renderReports === 'function' ? renderReports : null,
+            'daily-report': typeof renderDailyReport === 'function' ? renderDailyReport : null,
+            'users': () => { if(typeof renderUsers === 'function') renderUsers(); if(typeof renderDrivers === 'function') renderDrivers(); },
+            'settings': typeof renderSettings === 'function' ? renderSettings : null,
+            'orders_kiosk': typeof renderOrdersKiosk === 'function' ? renderOrdersKiosk : null,
+            'approvals': typeof renderApprovals === 'function' ? renderApprovals : null,
+            'kiosks': typeof renderKiosks === 'function' ? renderKiosks : null,
+            'kas_angkutan': typeof renderKasAngkutan === 'function' ? renderKasAngkutan : null,
+            'kas_umum': typeof renderKasUmum === 'function' ? renderKasUmum : null
+        };
+        
+        if (renderers[hash]) {
+            renderers[hash]();
+            if (typeof injectSortIcons === 'function') injectSortIcons();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            navigateTo(hash);
+        }
+
+        // Pastikan fokus kembali ke input yang baru dirender oleh fungsi di atas
         setTimeout(() => {
             const searchInput = document.querySelector('.table-header-controls input[type="text"]');
             if (searchInput) {
                 searchInput.focus();
-                // Pindahkan cursor ke akhir teks
                 const len = searchInput.value.length;
                 searchInput.setSelectionRange(len, len);
             }
-        }, 50);
-    }, 350);
+        }, 10);
+    }, 250); // Dipercepat menjadi 250ms agar lebih responsif
 }
 
 function handleDateFilter(type, val) {
     STATE.globalDateFilter[type] = val;
     Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
+    
+    // Gunakan trik render parsial yang sama untuk date filter
     const hash = window.location.hash.replace('#', '') || 'dashboard';
-    navigateTo(hash);
+    handleSearch(STATE.globalSearch); // Panggil handleSearch untuk memicu render parsial
 }
 
 function resetFilters() {
