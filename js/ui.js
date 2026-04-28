@@ -267,11 +267,41 @@ function showToast(message, type = 'success') {
 function updateHeaderUserInfo() {
     const nameEl = document.getElementById('header-user-name');
     const roleEl = document.getElementById('header-user-role');
+    const avatarInitial = document.getElementById('header-avatar-initial');
+    const dropdownFullName = document.getElementById('dropdown-full-name');
+    const dropdownRole = document.getElementById('dropdown-user-role');
+    
     if (nameEl && roleEl) {
         nameEl.textContent = STATE.currentUser.name;
         roleEl.textContent = STATE.currentUser.role;
-        roleEl.className = `badge ${STATE.currentUser.role.toLowerCase()}`;
+        
+        // Initial Avatar (First letter)
+        if (avatarInitial) avatarInitial.textContent = STATE.currentUser.name.charAt(0).toUpperCase();
+        
+        // Dropdown internal info
+        if (dropdownFullName) dropdownFullName.textContent = STATE.currentUser.name;
+        if (dropdownRole) dropdownRole.textContent = STATE.currentUser.role;
+
         if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Toggle Dropdown Event
+    const toggleBtn = document.getElementById('user-menu-toggle');
+    const menu = document.getElementById('user-dropdown-menu');
+    
+    if (toggleBtn && menu) {
+        // Clone and replace to remove old listeners if any
+        const newToggle = toggleBtn.cloneNode(true);
+        toggleBtn.parentNode.replaceChild(newToggle, toggleBtn);
+        
+        newToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.classList.toggle('active');
+        });
+
+        document.addEventListener('click', () => {
+            menu.classList.remove('active');
+        });
     }
 }
 

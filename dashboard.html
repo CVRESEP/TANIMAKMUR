@@ -118,12 +118,7 @@
                 </li>
             </ul>
         </nav>
-        <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-            <a href="#" class="nav-link" id="logout-btn" style="color: #ef4444;" onclick="logout(event)">
-                <i data-lucide="log-out"></i>
-                <span>KELUAR</span>
-            </a>
-        </div>
+        <!-- Sidebar Footer Removed -->
     </aside>
 
     <!-- Main Content -->
@@ -135,12 +130,34 @@
             <h1 class="header-title" id="page-display-title">DASBOR</h1>
             
             <div class="header-right" style="display: flex; align-items: center; gap: 20px;">
-                <div id="active-user-info" style="display: flex; align-items: center; gap: 10px; font-size: 0.85rem;">
-                    <i data-lucide="user-circle" style="width: 18px; color: var(--primary);"></i>
-                    <span id="header-user-name" style="font-weight: 600;">Loading...</span>
-                    <span id="header-user-role" class="badge">ROLE</span>
+                <div class="logout-timer mobile-hide" id="session-timer" style="color: var(--text-dim); font-size: 0.8rem; background: #f8fafc; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border);">Sesi: 05:00</div>
+                
+                <!-- Account Dropdown -->
+                <div class="user-dropdown" id="user-dropdown-root">
+                    <button class="user-profile-btn" id="user-menu-toggle">
+                        <div class="user-avatar" id="header-avatar-initial">A</div>
+                        <div class="user-info-text mobile-hide">
+                            <span id="header-user-name" class="user-name">Loading...</span>
+                            <span id="header-user-role" class="user-role">ROLE</span>
+                        </div>
+                        <i data-lucide="chevron-down" style="width: 14px; color: var(--text-dim);"></i>
+                    </button>
+                    
+                    <div class="dropdown-menu" id="user-dropdown-menu">
+                        <div class="dropdown-header">
+                            <strong id="dropdown-full-name">User Name</strong>
+                            <span id="dropdown-user-role">Role</span>
+                        </div>
+                        <hr>
+                        <a href="#settings" class="dropdown-item">
+                            <i data-lucide="settings"></i> Pengaturan Akun
+                        </a>
+                        <hr>
+                        <a href="#" class="dropdown-item logout" onclick="logout(event)">
+                            <i data-lucide="log-out"></i> Keluar Sistem
+                        </a>
+                    </div>
                 </div>
-                <div class="logout-timer" id="session-timer" style="color: var(--text-dim); font-size: 0.8rem;">Sesi berakhir: 05:00</div>
             </div>
         </header>
 
