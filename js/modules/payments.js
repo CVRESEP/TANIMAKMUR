@@ -3,18 +3,21 @@ function renderPayments() {
     const tbody = document.getElementById('payments-table-body');
     if (!tbody) return;
 
-    // Payments are settled orders from Kiosks
-    // Use activeBranchFilter for OWNER/MANAJER, otherwise use the user's assigned branch
-    const user = STATE.currentUser;
-    const effectiveBranch = user.branch === 'ALL' ? (STATE.activeBranchFilter || 'ALL') : user.branch;
-    const settledOrders = STATE.orders.filter(o => 
-        (o.status === 'APPROVED' || o.status === 'LUNAS') && 
-        (effectiveBranch === 'ALL' || (o.branch || '').toUpperCase() === effectiveBranch.toUpperCase())
+    // Gunakan getFilteredData untuk mendukung fitur Search dan Date Filter
+    // Filter hanya pesanan yang sudah didistribusikan (bukan menunggu persetujuan/ditolak)
+    const filteredOrders = getFilteredData('orders').filter(o => 
+        o.status !== 'MENUNGGU PERSETUJUAN' && o.status !== 'DITOLAK'
     );
 
-    const data = paginateData(settledOrders, 'payments');
+    const data = paginateData(filteredOrders, 'payments');
 
-    tbody.innerHTML = data.map(o => `
+    tbody.innerHTML = data.map(o => {
+        const isLunas = o.status === 'APPROVED' || o.status === 'LUNAS';
+        const badgeHTML = isLunas 
+            ? '<span class="badge lunas">LUNAS</span>' 
+            : '<span class="badge waiting">BELUM LUNAS</span>';
+            
+        return `
         <tr>
             <td><strong>${o.id}</strong></td>
             <td>${formatDate(o.date)}</td>
@@ -23,17 +26,20 @@ function renderPayments() {
             <td>${o.product}</td>
             <td>${o.qty} Ton</td>
             <td><strong>${formatCurrency(o.total)}</strong></td>
-            <td><span class="badge lunas">LUNAS</span></td>
+            <td>${badgeHTML}</td>
         </tr>
-    `).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 40px; color: var(--text-dim);">Belum ada pembayaran lunas yang terdata</td></tr>`;
+    `}).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 40px; color: var(--text-dim);">Belum ada pembayaran lunas yang terdata</td></tr>`;
     
     // Summary
-    const totalPayments = settledOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const totalPayments = filteredOrders
+        .filter(o => o.status === 'APPROVED' || o.status === 'LUNAS')
+        .reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+        
     const summaryContainer = document.querySelector('.payments-summary');
     if (summaryContainer) {
         summaryContainer.innerHTML = `
             <div class="card" style="padding: 20px; text-align: center;">
-                <div style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 8px;">TOTAL PENDAPATAN DITERIMA</div>
+                <div style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 8px;">TOTAL PENDAPATAN DITERIMA (LUNAS)</div>
                 <div style="font-size: 2rem; font-weight: 800; color: var(--primary);">${formatCurrency(totalPayments)}</div>
             </div>
         `;
