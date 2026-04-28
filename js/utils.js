@@ -13,19 +13,27 @@ function formatDate(isoDate) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
+/**
+ * Pembulatan aman ke 2 angka desimal untuk menghindari floating point error.
+ * Contoh: 4.9 - 4.8999999999999995 = 8.88e-16 → round2() = 0.00 ✅
+ */
+function round2(val) {
+    return Math.round((parseFloat(val) || 0) * 100) / 100;
+}
+
 function calculateStock(productName) {
     if (!STATE.pengeluaran || !STATE.penyaluran) return 0;
     const pNameUpper = (productName || '').toUpperCase();
     
     const totalOut = STATE.pengeluaran
         .filter(p => (p.product || '').toUpperCase() === pNameUpper)
-        .reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
+        .reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0);
     
     const totalDispatched = STATE.penyaluran
         .filter(p => (p.product || '').toUpperCase() === pNameUpper && p.status !== 'MENUNGGU PENGIRIMAN')
-        .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+        .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0);
         
-    return totalOut - totalDispatched;
+    return round2(totalOut - totalDispatched);
 }
 
 function getFilteredData(type) {

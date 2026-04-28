@@ -51,9 +51,10 @@ function _renderFinance(type, title) {
     }
 
     // Calculate Summary
-    const totalMasuk = allData.reduce((sum, item) => sum + (parseFloat(item.masuk) || 0), 0);
-    const totalKeluar = allData.reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
-    const saldo = totalMasuk - totalKeluar;
+    const totalMasuk = allData.reduce((sum, item) => round2(sum + (parseFloat(item.masuk) || 0)), 0);
+    const totalKeluar = allData.reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0);
+    const saldo = round2(totalMasuk - totalKeluar);
+
 
     if (summaryContainer) {
         summaryContainer.innerHTML = `
@@ -172,7 +173,7 @@ function submitFinanceForApproval(type = 'kas_angkutan') {
         STATE[type].forEach(item => {
             if (checked.includes(String(item.id))) {
                 item.status = 'MENUNGGU PERSETUJUAN';
-                totalReq += (parseFloat(item.keluar) || 0);
+                totalReq = round2(totalReq + (parseFloat(item.keluar) || 0));
             }
         });
         saveState();
@@ -291,7 +292,7 @@ function toggleApprovalCheckAll(master) {
 
 function updateApprovalTotal() {
     const checkboxes = Array.from(document.querySelectorAll('.approval-checkbox:checked'));
-    const total = checkboxes.reduce((sum, cb) => sum + (parseFloat(cb.dataset.amount) || 0), 0);
+    const total = round2(checkboxes.reduce((sum, cb) => round2(sum + (parseFloat(cb.dataset.amount) || 0)), 0));
     const count = checkboxes.length;
     
     const displayTotal = document.getElementById('approval-total-display');

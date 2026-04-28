@@ -359,10 +359,10 @@ function confirmOrder(id, nextStatus) {
     if (nextStatus === 'MENUNGGU PEMBAYARAN') {
         const availableDOs = STATE.pengeluaran.filter(entry => {
             if (entry.product !== order.product) return false;
-            const totalShared = STATE.penyaluran
+            const totalShared = round2(STATE.penyaluran
                 .filter(item => item.pengeluaran_id === entry.id)
-                .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
-            const remaining = (parseFloat(entry.keluar) || 0) - totalShared;
+                .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
+            const remaining = round2((parseFloat(entry.keluar) || 0) - totalShared);
             return remaining >= order.qty;
         });
 
@@ -382,10 +382,10 @@ function confirmOrder(id, nextStatus) {
                     <select name="pengeluaran_id" required>
                         <option value="" disabled selected>Pilih DO...</option>
                         ${availableDOs.map(doEntry => {
-            const totalShared = STATE.penyaluran
+            const totalShared = round2(STATE.penyaluran
                 .filter(item => item.pengeluaran_id === doEntry.id)
-                .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
-            const remaining = (parseFloat(doEntry.keluar) || 0) - totalShared;
+                .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
+            const remaining = round2((parseFloat(doEntry.keluar) || 0) - totalShared);
             return `<option value="${doEntry.id}">${doEntry.do} - Sisa: ${remaining.toFixed(1)} Ton</option>`;
         }).join('')}
                     </select>

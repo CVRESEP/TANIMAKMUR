@@ -101,11 +101,11 @@ function openProsesPenyaluranModal(pylId) {
     const availableDOs = STATE.pengeluaran.filter(entry => {
         if (entry.product !== pyl.product) return false;
         
-        const totalShared = STATE.penyaluran
+        const totalShared = round2(STATE.penyaluran
             .filter(item => item.pengeluaran_id === entry.id && item.id !== pylId)
-            .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+            .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
         
-        const remaining = (parseFloat(entry.keluar) || 0) - totalShared;
+        const remaining = round2((parseFloat(entry.keluar) || 0) - totalShared);
         return remaining >= pyl.qty;
     });
 
@@ -129,10 +129,10 @@ function openProsesPenyaluranModal(pylId) {
                 <select name="pengeluaran_id" required>
                     <option value="" disabled selected>Pilih DO Asal...</option>
                     ${availableDOs.map(doEntry => {
-                        const totalShared = STATE.penyaluran
+                        const totalShared = round2(STATE.penyaluran
                             .filter(item => item.pengeluaran_id === doEntry.id && item.id !== pylId)
-                            .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
-                        const remaining = (parseFloat(doEntry.keluar) || 0) - totalShared;
+                            .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
+                        const remaining = round2((parseFloat(doEntry.keluar) || 0) - totalShared);
                         return `<option value="${doEntry.id}">${doEntry.do} - [${doEntry.product}] Sisa: ${remaining.toFixed(1)} Ton</option>`;
                     }).join('')}
                 </select>

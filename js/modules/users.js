@@ -326,9 +326,23 @@ function updateDriver(e, id) {
     const fd = new FormData(e.target);
     const drv = STATE.drivers.find(d => d.id === id);
     if (drv) {
-        drv.name = fd.get('name');
-        drv.plat = fd.get('plat').toUpperCase();
+        const oldName = drv.name;
+        const oldPlat = drv.plat;
+        const newName = fd.get('name').trim();
+        const newPlat = fd.get('plat').toUpperCase().trim();
+
+        drv.name = newName;
+        drv.plat = newPlat;
         drv.branch = fd.get('branch');
+
+        // Cascade update penyaluran if name or plat changed
+        if (oldName !== newName || oldPlat !== newPlat) {
+            STATE.penyaluran.forEach(p => {
+                if (p.driver === oldName) p.driver = newName;
+                if (p.plat === oldPlat) p.plat = newPlat;
+            });
+        }
+
         saveState(true);
         closeModal();
         renderDrivers();
@@ -337,6 +351,14 @@ function updateDriver(e, id) {
 }
 
 function deleteDriver(id) {
+    const driver = STATE.drivers.find(d => d.id === id);
+    if (!driver) return;
+
+    const hasPenyaluran = STATE.penyaluran.some(p => p.driver === driver.name);
+    if (hasPenyaluran) {
+        return alert(`GAGAL MENGHAPUS: Sopir ${driver.name} sudah memiliki riwayat pengiriman barang. Data tidak dapat dihapus.`);
+    }
+
     if (confirm('Hapus master data sopir ini?')) {
         STATE.drivers = STATE.drivers.filter(d => d.id !== id);
         saveState(true);

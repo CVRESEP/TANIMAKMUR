@@ -41,59 +41,60 @@ function renderDailyReport() {
         const targetBranch = selectedBranch === 'ALL' ? (p.branch || '') : selectedBranch;
 
         // 1. SISA LALU (History before selectedDate)
-        const prevPurchased = (STATE.penebusan || [])
+        const prevPurchased = round2((STATE.penebusan || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
                 (selectedBranch === 'ALL' || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
                 item.date < selectedDate
             )
-            .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+            .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
         
-        const prevDispatched = (STATE.penyaluran || [])
+        const prevDispatched = round2((STATE.penyaluran || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
                 (selectedBranch === 'ALL' || (item.branch || '').toUpperCase() === targetBranch.toUpperCase() || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
                 item.date < selectedDate && 
                 item.status !== 'MENUNGGU PENGIRIMAN'
             )
-            .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+            .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
         
-        const sisaLalu = prevPurchased - prevDispatched;
+        const sisaLalu = round2(prevPurchased - prevDispatched);
 
         // 2. DAILY TRANSACTIONS
-        const dispatched = (STATE.penyaluran || [])
+        const dispatched = round2((STATE.penyaluran || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
                 (selectedBranch === 'ALL' || (item.branch || '').toUpperCase() === targetBranch.toUpperCase() || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
                 item.date === selectedDate && 
                 item.status !== 'MENUNGGU PENGIRIMAN'
             )
-            .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+            .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
         
-        const purchased = (STATE.penebusan || [])
+        const purchased = round2((STATE.penebusan || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
                 (selectedBranch === 'ALL' || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
                 item.date === selectedDate
             )
-            .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
+            .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
 
-        const stokAkhir = sisaLalu + purchased - dispatched;
+        const stokAkhir = round2(sisaLalu + purchased - dispatched);
         
         const hargaTebus = p.buyPrice || p.price || 0;
-        const hargaStok = stokAkhir * hargaTebus;
+        const hargaStok = round2(stokAkhir * hargaTebus);
         const hargaJual = p.price || 0;
-        const jualKios = dispatched * hargaJual;
-        const penebusanValue = purchased * hargaTebus;
+        const jualKios = round2(dispatched * hargaJual);
+        const penebusanValue = round2(purchased * hargaTebus);
 
         // Update Totals
-        totalSisaLalu += sisaLalu;
-        totalPenyaluran += dispatched;
-        totalPenebusanTunai += purchased;
-        totalStokAkhir += stokAkhir;
-        totalHargaStok += hargaStok;
-        totalJualKios += jualKios;
-        totalPenebusanValue += penebusanValue;
+        totalSisaLalu = round2(totalSisaLalu + sisaLalu);
+        totalPenyaluran = round2(totalPenyaluran + dispatched);
+        totalPenebusanTunai = round2(totalPenebusanTunai + purchased);
+        totalStokAkhir = round2(totalStokAkhir + stokAkhir);
+        totalHargaStok = round2(totalHargaStok + hargaStok);
+        totalJualKios = round2(totalJualKios + jualKios);
+        totalPenebusanValue = round2(totalPenebusanValue + penebusanValue);
+
 
         return `
             <tr>

@@ -69,6 +69,17 @@ function renderProducts() {
 }
 
 function deleteProduct(code) {
+    const product = STATE.products.find(p => p.code === code);
+    if (!product) return;
+
+    const inPenebusan = STATE.penebusan.some(p => p.product === product.name || p.productCode === code);
+    const inPengeluaran = STATE.pengeluaran.some(p => p.product === product.name);
+    const inPenyaluran = STATE.penyaluran.some(p => p.product === product.name);
+
+    if (inPenebusan || inPengeluaran || inPenyaluran) {
+        return alert(`GAGAL MENGHAPUS: Produk ${product.name} sudah digunakan dalam transaksi (Penebusan/Pengeluaran/Penyaluran). Anda tidak bisa menghapusnya.`);
+    }
+
     if (confirm(`Hapus produk ${code}? Tindakan ini tidak dapat dibatalkan.`)) {
         STATE.products = STATE.products.filter(p => p.code !== code);
         saveState();
@@ -242,8 +253,13 @@ async function updateProduct(e, oldCode) {
             }
         }
 
-        p.code = fd.get('code').toUpperCase();
-        p.name = fd.get('name');
+        const oldName = p.name;
+        const newName = fd.get('name').trim();
+        const oldCode = p.code;
+        const newCode = fd.get('code').toUpperCase().trim();
+
+        p.code = newCode;
+        p.name = newName;
         p.supplier = supplierName;
         p.branch = fd.get('branch');
         p.unit = fd.get('unit');
@@ -251,6 +267,23 @@ async function updateProduct(e, oldCode) {
         p.sellPrice = parseNumberInput(fd.get('sellPrice'));
         p.price = parseNumberInput(fd.get('sellPrice'));
         
+        // Cascade update product name and code
+        if (oldName !== newName || oldCode !== newCode) {
+            STATE.penebusan.forEach(item => {
+                if (item.product === oldName) item.product = newName;
+                if (item.productCode === oldCode) item.productCode = newCode;
+            });
+            STATE.pengeluaran.forEach(item => {
+                if (item.product === oldName) item.product = newName;
+            });
+            STATE.penyaluran.forEach(item => {
+                if (item.product === oldName) item.product = newName;
+            });
+            STATE.orders.forEach(item => {
+                if (item.product === oldName) item.product = newName;
+            });
+        }
+
         saveState();
         closeModal();
         renderProducts();

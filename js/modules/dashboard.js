@@ -63,9 +63,9 @@ function renderDashboard() {
     if (STATE.currentUser.role === 'KIOS') {
         // Kiosk Dashboard Logic
         const myOrders = STATE.orders.filter(o => o.kiosk === STATE.currentUser.name && isWithinRange(o.date));
-        const totalOrdered = myOrders.reduce((sum, o) => sum + (parseFloat(o.qty) || 0), 0);
+        const totalOrdered = round2(myOrders.reduce((sum, o) => round2(sum + (parseFloat(o.qty) || 0)), 0));
         const pendingCount = myOrders.filter(o => o.status === 'MENUNGGU PERSETUJUAN').length;
-        const totalPaid = myOrders.filter(o => o.status === 'LUNAS').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+        const totalPaid = round2(myOrders.filter(o => o.status === 'LUNAS').reduce((sum, o) => round2(sum + (parseFloat(o.total) || 0)), 0));
 
         const stats = [
             { title: 'TOTAL PESANAN', value: `${totalOrdered.toFixed(1)} TON`, color: 'var(--primary)', icon: 'shopping-bag' },
@@ -179,9 +179,9 @@ function renderDashboard() {
                 (ex.do || '').toString().trim().toUpperCase() === doNum &&
                 (ex.product || '').toUpperCase() === prodName
             );
-            const qtyKeluar = keluarUntukDO.reduce((sum, ex) => sum + (parseFloat(ex.keluar) || 0), 0);
+            const qtyKeluar = round2(keluarUntukDO.reduce((sum, ex) => round2(sum + (parseFloat(ex.keluar) || 0)), 0));
             
-            const sisaInDO = Math.max(0, (parseFloat(p.qty) || 0) - qtyKeluar);
+            const sisaInDO = Math.max(0, round2((parseFloat(p.qty) || 0) - qtyKeluar));
             productStats[key].qty += sisaInDO;
             if (p.qty > 0) {
                 productStats[key].val += (sisaInDO / p.qty) * (p.total || 0);
@@ -252,7 +252,7 @@ function renderDashboard() {
             </div>
         `;
 
-        const totalPenyaluranQty = filteredPenyaluranData.reduce((acc, curr) => acc + (parseFloat(curr.qty) || 0), 0);
+        const totalPenyaluranQty = round2(filteredPenyaluranData.reduce((acc, curr) => round2(acc + (parseFloat(curr.qty) || 0)), 0));
         
         const kasUmumRange = (isExecutive ? (STATE.kas_umum || []) : getFilteredData('kas_umum')).filter(k => isWithinRange(k.date));
         const kasAngkutRange = (isExecutive ? (STATE.kas_angkutan || []) : getFilteredData('kas_angkutan')).filter(k => isWithinRange(k.date));
@@ -263,11 +263,11 @@ function renderDashboard() {
         const kasUmumFull = isExecutive ? (STATE.kas_umum || []) : getFilteredData('kas_umum');
         const kasAngkutFull = isExecutive ? (STATE.kas_angkutan || []) : getFilteredData('kas_angkutan');
         
-        const saldoUmum = kasUmumFull.reduce((sum, item) => sum + (parseFloat(item.masuk) || 0) - (parseFloat(item.keluar) || 0), 0);
-        const keluarUmumRange = kasUmumRange.reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
+        const saldoUmum = round2(kasUmumFull.reduce((sum, item) => round2(sum + (parseFloat(item.masuk) || 0) - (parseFloat(item.keluar) || 0)), 0));
+        const keluarUmumRange = round2(kasUmumRange.reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0));
         
-        const saldoAngkut = kasAngkutFull.reduce((sum, item) => sum + (parseFloat(item.masuk) || 0) - (parseFloat(item.keluar) || 0), 0);
-        const keluarAngkutRange = kasAngkutRange.reduce((sum, item) => sum + (parseFloat(item.keluar) || 0), 0);
+        const saldoAngkut = round2(kasAngkutFull.reduce((sum, item) => round2(sum + (parseFloat(item.masuk) || 0) - (parseFloat(item.keluar) || 0)), 0));
+        const keluarAngkutRange = round2(kasAngkutRange.reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0));
 
         const financeStats = [
             { title: 'SALDO KAS UMUM', value: formatCurrency(saldoUmum), color: '#10b981', icon: 'wallet' },

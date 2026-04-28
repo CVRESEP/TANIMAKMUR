@@ -63,14 +63,17 @@ function renderPenebusan() {
 }
 
 function deletePenebusan(doRef) {
-    if (confirm('Hapus data penebusan DO ' + doRef + '? Data pengeluaran terkait juga akan dihapus.')) {
+    const hasPengeluaran = STATE.pengeluaran.some(p => p.do === doRef);
+    if (hasPengeluaran) {
+        return alert(`GAGAL MENGHAPUS: DO ${doRef} sudah dimasukkan ke Pengeluaran (Gudang). Hapus data pengeluaran terlebih dahulu.`);
+    }
+
+    if (confirm('Hapus data penebusan DO ' + doRef + '? Tindakan ini tidak dapat dibatalkan.')) {
         STATE.penebusan = STATE.penebusan.filter(p => p.do !== doRef);
-        STATE.pengeluaran = STATE.pengeluaran.filter(p => p.do !== doRef);
         saveState();
         renderPenebusan();
-        renderPengeluaran();
         renderDashboard();
-        openSuccessModal('DATA DIHAPUS', `Penebusan DO <strong>${doRef}</strong> beserta data operasionalnya berhasil dihapus.`);
+        openSuccessModal('DATA DIHAPUS', `Penebusan DO <strong>${doRef}</strong> berhasil dihapus.`);
     }
 }
 

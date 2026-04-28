@@ -37,7 +37,7 @@ function renderKiosks() {
         // Hitung total hutang (Belum Lunas)
         const unpaidTotal = STATE.orders
             .filter(o => o.kiosk === k.name && o.status !== 'LUNAS')
-            .reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+            .reduce((sum, o) => round2(sum + (parseFloat(o.total) || 0)), 0);
 
         return `
             <tr>
@@ -185,12 +185,26 @@ function updateKiosk(e, username) {
     const fd = new FormData(e.target);
     const k = STATE.users.find(u => u.username === username);
     if (k) {
-        k.name = fd.get('name');
+        const oldName = k.name;
+        const newName = fd.get('name').trim();
+        
+        k.name = newName;
         k.branch = fd.get('branch');
         k.kecamatan = fd.get('kecamatan');
         k.desa = fd.get('desa');
         k.pic = fd.get('pic');
         k.phone = fd.get('phone');
+        
+        // Cascade update orders and penyaluran if name changed
+        if (oldName !== newName) {
+            STATE.orders.forEach(o => {
+                if (o.kiosk === oldName) o.kiosk = newName;
+            });
+            STATE.penyaluran.forEach(p => {
+                if (p.kios === oldName) p.kios = newName;
+            });
+        }
+        
         saveState();
         closeModal();
         renderKiosks();
@@ -199,6 +213,13 @@ function updateKiosk(e, username) {
 }
 
 function deleteKiosk(username) {
+    const kioskName = (STATE.users.find(u => u.username === username) || {}).name;
+    const hasOrders = STATE.orders.some(o => o.kiosk === kioskName);
+    
+    if (hasOrders) {
+        return alert(`GAGAL MENGHAPUS: Kios ${kioskName || username} memiliki riwayat pesanan/hutang. Anda tidak bisa menghapus kios yang sudah melakukan transaksi.`);
+    }
+
     if (confirm('Hapus data kios ' + username + '? Seluruh akun login terkait juga akan dihapus.')) {
         STATE.users = STATE.users.filter(u => u.username !== username);
         saveState();
@@ -214,7 +235,7 @@ function viewKioskOrders(kioskName) {
 
     const totalDebt = kioskOrders
         .filter(o => o.status !== 'LUNAS')
-        .reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+        .reduce((sum, o) => round2(sum + (parseFloat(o.total) || 0)), 0);
     
     const title = `Riwayat Pesanan - ${kioskName} ${totalDebt > 0 ? `<span style="color:#ef4444; margin-left:15px; font-weight:800; font-size:1.1rem;">| KURANG BAYAR: ${formatCurrency(totalDebt)}</span>` : ''}`;
 
@@ -257,7 +278,7 @@ function printKioskDebts() {
             o.status !== 'LUNAS'
         );
         
-        const totalDebt = unpaidOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+        const totalDebt = round2(unpaidOrders.reduce((sum, o) => round2(sum + (o.total || 0)), 0));
         
         return {
             ...k,
@@ -351,7 +372,7 @@ function printKioskDebts() {
                 <tfoot>
                     <tr>
                         <th colspan="3" class="text-right" style="padding: 15px; font-size:12px;">TOTAL KESELURUHAN PIUTANG</th>
-                        <th class="text-right debt-heavy" style="font-size: 16px; background: #fff1f2; border: 2px solid #ef4444;">${formatCurrency(reportData.reduce((sum, k) => sum + k.totalDebt, 0))}</th>
+                        <th class="text-right debt-heavy" style="font-size: 16px; background: #fff1f2; border: 2px solid #ef4444;">${formatCurrency(reportData.reduce((sum, k) => round2(sum + k.totalDebt), 0))}</th>
                     </tr>
                 </tfoot>
             </table>

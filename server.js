@@ -111,7 +111,8 @@ app.post('/api/sync', async (req, res) => {
 
       if (['users', 'products'].includes(table) && rows.length === 0) continue;
 
-      await turso.execute(`DELETE FROM "${table}"`);
+      const stmts = [`DELETE FROM "${table}"`];
+      
       for (const row of rows) {
         const cols = Object.keys(row);
         const placeholders = cols.map(() => '?').join(', ');
@@ -120,8 +121,11 @@ app.post('/api/sync', async (req, res) => {
            let v = row[c];
            return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v;
         });
-        await turso.execute({ sql, args: values });
+        stmts.push({ sql, args: values });
       }
+      
+      // Execute all inserts for this table in a single batch
+      await turso.batch(stmts, 'write');
     }
 
     // Metadata

@@ -37,11 +37,12 @@ function renderPengeluaran() {
 
 
     // Inject computed sisaStok field for sorting
+    // round2() prevents floating point errors (e.g. 4.9 - 4.8999999... = 8.88e-16 → 0.00)
     const allDataWithSisa = allData.map(d => {
         const totalPenyaluranThisEntry = STATE.penyaluran
             .filter(p => p.pengeluaran_id === d.id && p.status !== 'MENUNGGU PENGIRIMAN')
-            .reduce((sum, p) => sum + (parseFloat(p.qty) || 0), 0);
-        return { ...d, sisaStok: d.keluar - totalPenyaluranThisEntry };
+            .reduce((sum, p) => round2(sum + (parseFloat(p.qty) || 0)), 0);
+        return { ...d, sisaStok: round2((parseFloat(d.keluar) || 0) - totalPenyaluranThisEntry) };
     });
 
     // Sort if sortConfig targets sisaStok
@@ -168,7 +169,7 @@ function savePengeluaran(e) {
     // Calculate how much has already been logged as "Pengeluaran" for this DO
     const alreadyOut = STATE.pengeluaran
         .filter(o => o.do === doRef)
-        .reduce((sum, o) => sum + o.keluar, 0);
+        .reduce((sum, o) => round2(sum + o.keluar), 0);
 
     if (alreadyOut + qty > penebusan.qty) {
         alert(`Gagal! Qty melebihi sisa penebusan (${penebusan.qty - alreadyOut} Ton tersisa).`);
@@ -193,6 +194,11 @@ function savePengeluaran(e) {
 }
 
 function deletePengeluaran(outId) {
+    const hasPenyaluran = STATE.penyaluran.some(p => p.pengeluaran_id === outId);
+    if (hasPenyaluran) {
+        return alert('GAGAL MENGHAPUS: Data pengeluaran ini sudah memiliki jadwal penyaluran/pengiriman. Hapus jadwal penyalurannya terlebih dahulu.');
+    }
+
     if (confirm('Hapus data pengeluaran ini?')) {
         STATE.pengeluaran = STATE.pengeluaran.filter(p => p.id !== outId);
         saveState();
@@ -211,7 +217,7 @@ function openEditPengeluaranModal(id) {
     // Calculate max allowed for this specific entry
     const otherAlreadyOut = STATE.pengeluaran
         .filter(o => o.do === entry.do && o.id !== id)
-        .reduce((sum, o) => sum + o.keluar, 0);
+        .reduce((sum, o) => round2(sum + o.keluar), 0);
     
     const maxAllowed = penebusan ? (penebusan.qty - otherAlreadyOut) : entry.keluar;
 
@@ -259,7 +265,7 @@ function openDirectPenyaluranModal(id) {
     // Calculate current sisa
     const totalPenyaluranThisEntry = STATE.penyaluran
         .filter(p => p.pengeluaran_id === entry.id && p.status !== 'MENUNGGU PENGIRIMAN')
-        .reduce((sum, p) => sum + p.qty, 0);
+        .reduce((sum, p) => round2(sum + p.qty), 0);
     const sisa = entry.keluar - totalPenyaluranThisEntry;
 
     if (sisa <= 0) return openErrorModal('STOK HABIS', 'DO ini sudah habis disalurkan.');
