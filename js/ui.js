@@ -123,6 +123,7 @@ function navigateTo(pageId) {
 
     if (renderers[pageId]) renderers[pageId]();
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    injectSortIcons(); // Added to fix table headers
     updateSidebarBadges();
 }
 

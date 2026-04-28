@@ -115,6 +115,31 @@ function handleSort(column, type) {
     // Rerender current view
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     navigateTo(hash);
+    
+    // Inject icons after render
+    setTimeout(injectSortIcons, 50);
+}
+
+function injectSortIcons() {
+    const headers = document.querySelectorAll('th[onclick*="handleSort"]');
+    headers.forEach(th => {
+        // Extract column name from onclick="handleSort('columnName')"
+        const match = th.getAttribute('onclick').match(/handleSort\('([^']+)'\)/);
+        if (match) {
+            const col = match[1];
+            // Remove any existing sort icons/placeholders
+            const existingIcon = th.querySelector('.sort-icon');
+            if (existingIcon) existingIcon.remove();
+            
+            // Clean template literals if they were accidentally rendered as text
+            th.innerHTML = th.innerHTML.replace(/\$\{renderSortIcon\([^)]+\)\}/g, '').trim();
+            
+            // Add the new icon
+            th.insertAdjacentHTML('beforeend', renderSortIcon(col));
+        }
+    });
+    });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function renderSortIcon(column) {
