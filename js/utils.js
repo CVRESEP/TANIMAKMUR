@@ -77,16 +77,21 @@ function getFilteredData(type) {
             let valA = a[column];
             let valB = b[column];
 
-            // Handle date sorting
+            // Handle date sorting — ISO YYYY-MM-DD strings sort correctly as strings
             if (column === 'date' || column === 'tanggal') {
-                valA = new Date(valA || 0);
-                valB = new Date(valB || 0);
+                valA = valA || '';
+                valB = valB || '';
+                if (valA < valB) return order === 'asc' ? -1 : 1;
+                if (valA > valB) return order === 'asc' ? 1 : -1;
+                return 0;
             }
 
             // Handle numeric values
-            if (!isNaN(valA) && !isNaN(valB)) {
-                valA = parseFloat(valA);
-                valB = parseFloat(valB);
+            const numA = parseFloat(valA);
+            const numB = parseFloat(valB);
+            if (!isNaN(numA) && !isNaN(numB)) {
+                valA = numA;
+                valB = numB;
             } else {
                 valA = String(valA || '').toLowerCase();
                 valB = String(valB || '').toLowerCase();
