@@ -26,7 +26,10 @@ function renderDailyReport() {
     const summaryBody = document.getElementById('dr-summary-body');
     if (!tbody || !summaryBody) return;
 
-    const products = STATE.products.filter(p => selectedBranch === 'ALL' || p.branch === selectedBranch);
+    const products = STATE.products.filter(p => 
+        selectedBranch === 'ALL' || 
+        (p.branch || '').toUpperCase() === selectedBranch.toUpperCase()
+    );
     
     let totalSisaLalu = 0, totalPenyaluran = 0, totalPenebusanTunai = 0, totalStokAkhir = 0;
     let totalHargaStok = 0, totalJualKios = 0, totalPenebusanValue = 0;
@@ -37,22 +40,40 @@ function renderDailyReport() {
 
         // 1. SISA LALU (History before selectedDate)
         const prevPurchased = (STATE.penebusan || [])
-            .filter(item => item.product === prodName && item.kabupaten === branch && item.date < selectedDate)
+            .filter(item => 
+                (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
+                (item.kabupaten || '').toUpperCase() === (branch || '').toUpperCase() && 
+                item.date < selectedDate
+            )
             .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
         
         const prevDispatched = (STATE.penyaluran || [])
-            .filter(item => item.product === prodName && (item.branch === branch || item.kabupaten === branch) && item.date < selectedDate && item.status !== 'MENUNGGU PENGIRIMAN')
+            .filter(item => 
+                (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
+                ((item.branch || '').toUpperCase() === (branch || '').toUpperCase() || (item.kabupaten || '').toUpperCase() === (branch || '').toUpperCase()) && 
+                item.date < selectedDate && 
+                item.status !== 'MENUNGGU PENGIRIMAN'
+            )
             .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
         
         const sisaLalu = prevPurchased - prevDispatched;
 
         // 2. DAILY TRANSACTIONS
         const dispatched = (STATE.penyaluran || [])
-            .filter(item => item.product === prodName && (item.branch === branch || item.kabupaten === branch) && item.date === selectedDate && item.status !== 'MENUNGGU PENGIRIMAN')
+            .filter(item => 
+                (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
+                ((item.branch || '').toUpperCase() === (branch || '').toUpperCase() || (item.kabupaten || '').toUpperCase() === (branch || '').toUpperCase()) && 
+                item.date === selectedDate && 
+                item.status !== 'MENUNGGU PENGIRIMAN'
+            )
             .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
         
         const purchased = (STATE.penebusan || [])
-            .filter(item => item.product === prodName && item.kabupaten === branch && item.date === selectedDate)
+            .filter(item => 
+                (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
+                (item.kabupaten || '').toUpperCase() === (branch || '').toUpperCase() && 
+                item.date === selectedDate
+            )
             .reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
 
         const stokAkhir = sisaLalu + purchased - dispatched;

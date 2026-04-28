@@ -138,7 +138,6 @@ function injectSortIcons() {
             th.insertAdjacentHTML('beforeend', renderSortIcon(col));
         }
     });
-    });
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
