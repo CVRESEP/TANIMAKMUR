@@ -153,8 +153,7 @@ function saveOrder(e) {
         status: 'MENUNGGU PERSETUJUAN'
     };
 
-    STATE.orders.unshift(newOrder);
-    saveState();
+    saveRecord('orders', newOrder);
     closeModal();
     renderOrdersKiosk();
     if (typeof renderDashboard === 'function') renderDashboard();

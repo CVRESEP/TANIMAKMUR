@@ -69,8 +69,7 @@ function deletePenebusan(doRef) {
     }
 
     if (confirm('Hapus data penebusan DO ' + doRef + '? Tindakan ini tidak dapat dibatalkan.')) {
-        STATE.penebusan = STATE.penebusan.filter(p => p.do !== doRef);
-        saveState();
+        deleteRecord('penebusan', doRef);
         renderPenebusan();
         renderDashboard();
         openSuccessModal('DATA DIHAPUS', `Penebusan DO <strong>${doRef}</strong> berhasil dihapus.`);
@@ -181,8 +180,7 @@ function savePenebusan(e) {
         return;
     }
 
-    STATE.penebusan.unshift(newPenebusan);
-    saveState();
+    saveRecord('penebusan', newPenebusan);
     closeModal();
     renderPenebusan();
     renderPengeluaran();

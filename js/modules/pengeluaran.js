@@ -247,7 +247,7 @@ function savePengeluaran(e) {
         return;
     }
 
-    STATE.pengeluaran.unshift({
+    const newEntry = {
         id: 'OUT-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
         do: doRef,
         product: penebusan.product,
@@ -255,9 +255,10 @@ function savePengeluaran(e) {
         keluar: qty,
         kabupaten: penebusan.kabupaten,
         date: date
-    });
+    };
 
-    saveState();
+    saveRecord('pengeluaran', newEntry);
+    
     closeModal();
     renderPengeluaran();
     renderDashboard();
@@ -271,8 +272,7 @@ function deletePengeluaran(outId) {
     }
 
     if (confirm('Hapus data pengeluaran ini?')) {
-        STATE.pengeluaran = STATE.pengeluaran.filter(p => p.id !== outId);
-        saveState();
+        deleteRecord('pengeluaran', outId);
         renderPengeluaran();
         renderDashboard();
         openSuccessModal('DATA DIHAPUS', `Pengeluaran DO berhasil dihapus.`);

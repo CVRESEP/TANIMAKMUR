@@ -84,8 +84,7 @@ function deleteProduct(code) {
     }
 
     if (confirm(`Hapus produk ${code}? Tindakan ini tidak dapat dibatalkan.`)) {
-        STATE.products = STATE.products.filter(p => p.code !== code);
-        saveState();
+        deleteRecord('products', code);
         renderProducts();
         openSuccessModal('PRODUK DIHAPUS', `Produk <strong>${code}</strong> telah berhasil dihapus dari sistem.`);
     }
@@ -158,17 +157,6 @@ async function saveProduct(e) {
         }
     }
 
-    const newProduct = {
-        code: generatedCode,
-        name: fd.get('name'),
-        supplier: supplierName,
-        branch: branch,
-        unit: fd.get('unit'),
-        buyPrice: parseNumberInput(fd.get('buyPrice')),
-        sellPrice: parseNumberInput(fd.get('sellPrice')),
-        price: parseNumberInput(fd.get('sellPrice')) // Fallback
-    };
-
     // Final uniqueness check
     let finalCode = generatedCode;
     let counter = lastNum;
@@ -176,10 +164,18 @@ async function saveProduct(e) {
         counter++;
         finalCode = `${name}-${String(counter).padStart(3, '0')}-${branch}`;
     }
-    newProduct.code = finalCode;
 
-    STATE.products.push(newProduct);
-    saveState();
+    const newProduct = {
+        code: finalCode,
+        name: fd.get('name'),
+        branch: branch,
+        buyPrice: parseNumberInput(fd.get('buyPrice')),
+        sellPrice: parseNumberInput(fd.get('sellPrice')),
+        supplier: supplierName || '-'
+    };
+
+    saveRecord('products', newProduct);
+    
     closeModal();
     renderProducts();
     openSuccessModal('PRODUK DITAMBAHKAN', `Produk <strong>${newProduct.name}</strong> berhasil disimpan ke daftar.`);

@@ -922,14 +922,12 @@ function bulkDelete(type) {
         };
 
         const idField = idMap[type] || 'id';
-        const targetState = (type === 'kiosks_dir') ? 'users' : type;
+        const targetTable = (type === 'kiosks_dir') ? 'users' : type;
 
-        STATE[targetState] = STATE[targetState].filter(item => {
-            const val = item[idField];
-            return !checked.includes(String(val));
+        // Gunakan deleteRecord untuk setiap ID terpilih agar sinkron ke server secara eksplisit
+        checked.forEach(id => {
+            deleteRecord(targetTable, id, idField);
         });
-
-        saveState(true);
         STATE.uiSelectionMode[type] = false;
         const currentHash = window.location.hash.replace('#', '') || 'dashboard';
         navigateTo(currentHash);

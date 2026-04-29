@@ -107,13 +107,13 @@ app.post('/api/sync', async (req, res) => {
     // Jalankan sync dalam urutan tertentu
     for (const [stateKey, table] of Object.entries(tableMap)) {
       const rows = state[stateKey];
-      if (!Array.isArray(rows)) continue;
+      if (!Array.isArray(rows) || rows.length === 0) continue;
 
-      if (['users', 'products'].includes(table) && rows.length === 0) continue;
+      console.log(`[SYNC] Processing ${rows.length} rows for table: ${table}`);
 
-      const stmts = [`DELETE FROM "${table}"`];
-      
+      const allStmts = [];
       for (const row of rows) {
+        if (!row || typeof row !== 'object') continue;
         const cols = Object.keys(row);
         const placeholders = cols.map(() => '?').join(', ');
         const sql = `INSERT OR REPLACE INTO "${table}" (${cols.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
@@ -121,11 +121,21 @@ app.post('/api/sync', async (req, res) => {
            let v = row[c];
            return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v;
         });
-        stmts.push({ sql, args: values });
+        allStmts.push({ sql, args: values });
       }
       
-      // Execute all inserts for this table in a single batch
-      await turso.batch(stmts, 'write');
+      // Chunking batch (50 statements per batch) untuk menghindari timeout/limit Turso
+      const chunkSize = 50;
+      for (let i = 0; i < allStmts.length; i += chunkSize) {
+        const chunk = allStmts.slice(i, i + chunkSize);
+        try {
+          await turso.batch(chunk, 'write');
+          console.log(`[SYNC]   -> Chunk ${Math.floor(i/chunkSize) + 1} for ${table} success.`);
+        } catch (batchErr) {
+          console.error(`[SYNC]   -> Error in chunk ${i} for ${table}:`, batchErr.message);
+          throw batchErr; // Re-throw to catch block
+        }
+      }
     }
 
     // Metadata
@@ -147,6 +157,62 @@ app.post('/api/sync', async (req, res) => {
     lastError = e.message;
     res.status(500).json({ error: e.message });
   }
+});
+
+// Endpoint untuk insert data tunggal secara langsung (LEBIH CEPAT)
+app.post('/api/insert-record', async (req, res) => {
+  const { table, data } = req.body;
+  if (!table || !data) return res.status(400).json({ error: 'Missing table or data' });
+
+  try {
+    const cols = Object.keys(data);
+    const placeholders = cols.map(() => '?').join(', ');
+    const sql = `INSERT OR REPLACE INTO "${table}" (${cols.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
+    const values = cols.map(c => {
+      let v = data[c];
+      return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v;
+    });
+
+    await turso.execute({ sql, args: values });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Endpoint untuk hapus data tunggal secara langsung
+app.post('/api/delete-record', async (req, res) => {
+  const { table, id, idField = 'id' } = req.body;
+  if (!table || !id) return res.status(400).json({ error: 'Missing table or id' });
+
+  try {
+    // Mapping field ID yang benar untuk setiap tabel jika tidak dikirim dari klien
+    let finalIdField = idField;
+    if (table === 'penebusan') finalIdField = 'do';
+    if (table === 'users' || table === 'kiosks') finalIdField = 'username';
+    if (table === 'products') finalIdField = 'code';
+
+    await turso.execute({ 
+      sql: `DELETE FROM "${table}" WHERE "${finalIdField}" = ?`, 
+      args: [id] 
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Suppliers handler (compatible with older modules)
+app.post('/api/suppliers', async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name missing' });
+  try {
+    await turso.execute({
+      sql: 'INSERT OR REPLACE INTO suppliers (name) VALUES (?)',
+      args: [name]
+    });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Notifications
