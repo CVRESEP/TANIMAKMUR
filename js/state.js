@@ -160,14 +160,13 @@ let syncFailureCount = 0; // Added failure counter
 let lastSyncPayload = null;
 
 /**
- * Menyimpan satu record secara langsung ke database tanpa menunggu sync massal.
- * Ini membuat aplikasi terasa jauh lebih cepat ("Langsung").
+ * Menyimpan satu record dan langsung sync ke server.
+ * Menggunakan endpoint /api/sync yang sudah terbukti berjalan.
  */
 async function saveRecord(table, data) {
     if (!STATE[table]) STATE[table] = [];
     
     // 1. Update local state (Optimistic)
-    // Cek jika record sudah ada (berdasarkan ID atau DO), jika ada maka update, jika tidak unshift
     const identifier = data.id || data.do || data.username || data.code;
     const existingIndex = STATE[table].findIndex(item => (item.id || item.do || item.username || item.code) === identifier);
     
@@ -177,78 +176,35 @@ async function saveRecord(table, data) {
         STATE[table].unshift(data);
     }
 
-    // 2. Simpan ke localStorage (Session)
+    // 2. Simpan session
     localStorage.setItem('tm_current_user', JSON.stringify(STATE.currentUser));
     
-    // 3. Render UI Instan
+    // 3. Update UI
     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
 
-    // 4. Kirim ke server secara langsung dengan timeout
-    try {
-        updateSyncBadge('syncing');
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
-        const r = await fetch(`${API_BASE}/insert-record`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ table, data }),
-            keepalive: true,
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-
-        if (r.ok) {
-            updateSyncBadge('online');
-            console.log(`[TM CLOUD] Record pada ${table} berhasil disimpan langsung.`);
-        } else {
-            const errData = await r.json().catch(() => ({}));
-            throw new Error(errData.error || 'Server error ' + r.status);
-        }
-    } catch (e) {
-        const errorMsg = e.name === 'AbortError' ? 'Timeout (Server Lambat)' : e.message;
-        console.warn(`[TM CLOUD] Direct save gagal (${errorMsg}), akan dicoba via background sync.`);
-        // Jika gagal simpan langsung, tandai untuk sync background
-        saveState(); 
-    }
+    // 4. Sync SEGERA ke server (immediate = true)
+    console.log(`[TM CLOUD] Menyimpan record baru ke ${table} - memulai sync...`);
+    syncToServer(true);
 }
 
 /**
- * Menghapus satu record secara langsung dari database.
+ * Menghapus satu record dan langsung sync ke server.
  */
-async function deleteRecord(table, id, idField = 'id') {
+function deleteRecord(table, id, idField = 'id') {
     if (!STATE[table]) return;
 
     // 1. Update local state
     const originalLength = STATE[table].length;
     STATE[table] = STATE[table].filter(item => (item.id || item.do || item.username || item.code) !== id);
     
-    if (STATE[table].length === originalLength) return; // Tidak ada yang dihapus
+    if (STATE[table].length === originalLength) return;
 
-    // 2. Render UI Instan
+    // 2. Update UI
     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();
 
-    // 3. Kirim ke server
-    try {
-        updateSyncBadge('syncing');
-        const r = await fetch(`${API_BASE}/delete-record`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ table, id, idField }),
-            keepalive: true
-        });
-        
-        if (r.ok) {
-            updateSyncBadge('online');
-            console.log(`[TM CLOUD] Record ${id} pada ${table} berhasil dihapus langsung.`);
-        } else {
-            throw new Error('Direct delete failed');
-        }
-    } catch (e) {
-        console.warn(`[TM CLOUD] Direct delete gagal, akan dicoba via background sync:`, e.message);
-        saveState();
-    }
+    // 3. Sync SEGERA ke server
+    console.log(`[TM CLOUD] Menghapus record ${id} dari ${table} - memulai sync...`);
+    syncToServer(true);
 }
 
 function syncToServer(immediate = false) {
@@ -257,11 +213,12 @@ function syncToServer(immediate = false) {
     clearTimeout(syncTimer);
     
     const performSync = async (retryCount = 0) => {
-        if (isSyncing) return; // Jika sedang sync, biarkan yang berjalan, nanti di-catch di finally block
+        if (isSyncing) return;
         
+        // Jika server belum siap, tetap coba sync tapi log warning
+        // Jangan blokir total — data user harus tetap tersimpan
         if (!STATE_LOADED_FROM_SERVER) {
-            console.warn('[TM CLOUD] Sync ditunda: Data belum termuat sempurna dari server.');
-            return;
+            console.warn('[TM CLOUD] Sync berjalan meski server load belum selesai (data dirty).');
         }
 
         try {
