@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tani Makmur - Dashboard</title>
     <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
 <body>
     <!-- Sidebar -->
@@ -168,18 +170,20 @@
 
     <!-- Templates for different sections (Hidden) -->
     <template id="tpl-dashboard">
-        <div class="dashboard-filter-card">
-            <div class="filter-group">
-                <div class="filter-item">
-                    <label>MULAI TANGGAL</label>
-                    <input type="date" id="dash-start-date" class="filter-input" onchange="updateDashboardRange()">
+        <div class="dashboard-filter-card" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; margin-bottom: 25px;">
+            <div class="date-range-pill">
+                <span class="label">PERIODE</span>
+                <div class="date-input-group">
+                    <i data-lucide="calendar"></i>
+                    <input type="date" id="dash-start-date" onchange="updateDashboardRange()">
                 </div>
-                <div class="filter-item">
-                    <label>SAMPAI TANGGAL</label>
-                    <input type="date" id="dash-end-date" class="filter-input" onchange="updateDashboardRange()">
+                <span class="separator">|</span>
+                <div class="date-input-group">
+                    <i data-lucide="calendar"></i>
+                    <input type="date" id="dash-end-date" onchange="updateDashboardRange()">
                 </div>
             </div>
-            <div id="range-label-display" class="range-display">
+            <div id="range-label-display" class="range-display" style="font-weight: 700; color: var(--primary); font-size: 0.9rem; background: var(--primary-light); padding: 6px 15px; border-radius: 20px;">
                 Memuat data...
             </div>
         </div>
@@ -231,7 +235,8 @@
                         <th onclick="handleSort('name')">Nama Produk </th>
                         <th onclick="handleSort('buyPrice')">Harga Beli </th>
                         <th onclick="handleSort('sellPrice')">Harga Jual </th>
-                        <th>Stok</th>
+                        <th>STOK</th>
+                        <th>SISA TEBUS</th>
                         <th>AKSI</th>
                     </tr>
                     </thead>
@@ -322,7 +327,7 @@
             </div>
         </div>
         <div id="pengeluaran-selection-actions"></div>
-        <div id="do-summary-grid" class="stats-grid" style="margin-bottom: 20px;"></div>
+        <div id="do-summary-grid" class="stats-grid" style="margin-bottom: 8px;"></div>
         <div class="card p-0 overflow-hidden">
             <div class="table-container">
                 <table>
@@ -341,6 +346,7 @@
                 </tbody>
             </table>
         </div>
+        <div id="pending-penebusan-list"></div>
     </template>
 
     <template id="tpl-kas_angkutan">
@@ -737,22 +743,23 @@
     <template id="tpl-reports">
         <div class="header-actions" style="margin-bottom: 20px;">
             <h2 class="page-title">Pusat Laporan & Analitik</h2>
+            <div class="dashboard-filter-card" style="margin-bottom: 30px; padding: 15px 25px; display: inline-flex;">
+                <div class="date-range-pill">
+                    <span class="label">RENTANG LAPORAN</span>
+                    <div class="date-input-group">
+                        <i data-lucide="calendar"></i>
+                        <input type="date" id="rep-start-date" onchange="renderReports()">
+                    </div>
+                    <span class="separator">|</span>
+                    <div class="date-input-group">
+                        <i data-lucide="calendar"></i>
+                        <input type="date" id="rep-end-date" onchange="renderReports()">
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div class="dashboard-filter-card" style="margin-bottom: 30px;">
-            <div class="filter-group">
-                <div class="filter-item">
-                    <label>MULAI TANGGAL</label>
-                    <input type="date" id="rep-start-date" class="filter-input" onchange="renderReports()">
-                </div>
-                <div class="filter-item">
-                    <label>SAMPAI TANGGAL</label>
-                    <input type="date" id="rep-end-date" class="filter-input" onchange="renderReports()">
-                </div>
-            </div>
-            <div class="range-display" id="rep-range-display">
-                Memuat periode...
-            </div>
+        <div class="range-display" id="rep-range-display">
+            Memuat periode...
         </div>
 
         <div class="stats-grid">
@@ -768,6 +775,9 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="previewReport('penebusan')">
+                        <i data-lucide="eye"></i> PREVIEW
+                    </button>
                     <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('penebusan')">
                         <i data-lucide="download"></i> EXCEL
                     </button>
@@ -786,6 +796,9 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="previewReport('penyaluran')">
+                        <i data-lucide="eye"></i> PREVIEW
+                    </button>
                     <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('penyaluran')">
                         <i data-lucide="download"></i> EXCEL
                     </button>
@@ -804,6 +817,9 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="previewReport('kas_umum')">
+                        <i data-lucide="eye"></i> PREVIEW
+                    </button>
                     <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('kas_umum')">
                         <i data-lucide="download"></i> EXCEL
                     </button>
@@ -822,6 +838,9 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="previewReport('kas_angkutan')">
+                        <i data-lucide="eye"></i> PREVIEW
+                    </button>
                     <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('kas_angkutan')">
                         <i data-lucide="download"></i> EXCEL
                     </button>
@@ -840,6 +859,9 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: auto;">
+                    <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="previewReport('stocks')">
+                        <i data-lucide="eye"></i> PREVIEW
+                    </button>
                     <button class="action-btn secondary" style="flex: 1; justify-content: center;" onclick="exportReports('stocks')">
                         <i data-lucide="download"></i> EXCEL
                     </button>
@@ -854,19 +876,21 @@
                 <h2 class="page-title">Laporan Harian</h2>
                 <p style="font-size: 0.85rem; color: var(--text-dim);">Pilih tanggal dan kabupaten laporan yang ingin Anda lihat.</p>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <div class="filter-item" style="margin: 0; position: relative;">
-                    <i data-lucide="calendar" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; color: var(--text-dim);"></i>
-                    <input type="date" id="dr-date" class="filter-input" style="padding-left: 35px; min-width: 180px;" onchange="renderDailyReport()">
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <div class="date-range-pill">
+                    <div class="date-input-group">
+                        <i data-lucide="calendar"></i>
+                        <input type="date" id="dr-date" onchange="renderDailyReport()">
+                    </div>
                 </div>
-                <select id="dr-branch" class="filter-input" style="min-width: 120px;" onchange="renderDailyReport()">
+                <select id="dr-branch" class="premium-select" style="min-width: 160px;" onchange="renderDailyReport()">
                     <option value="ALL">Semua Wilayah</option>
                     <option value="MAGETAN">MAGETAN</option>
                     <option value="SRAGEN">SRAGEN</option>
                 </select>
-                <button class="action-btn primary" onclick="renderDailyReport()">Tampilkan Data</button>
+                <button class="action-btn" onclick="renderDailyReport()" style="background: var(--primary); color: white; border-radius: 20px; padding: 0 20px; height: 38px; font-weight: 700; border: none; font-size: 0.85rem;">Tampilkan Data</button>
                 <div class="dropdown">
-                    <button class="action-btn secondary dropdown-toggle" onclick="toggleDropdown(event)">
+                    <button class="action-btn secondary dropdown-toggle" onclick="toggleDropdown(event)" style="border-radius: 20px; height: 38px;">
                         EXPORT <i data-lucide="chevron-down"></i>
                     </button>
                     <div class="dropdown-content">
@@ -885,13 +909,13 @@
                             <th style="font-weight: 700; color: #475569; padding: 0 15px; font-size: 0.75rem;">PRODUK</th>
                             <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">SISA LALU</th>
                             <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">PENYALURAN</th>
-                            <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">PENEBUSAN TUNAI</th>
+                            <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">MASUK GUDANG</th>
                             <th style="font-weight: 700; color: #475569; text-align: center; padding: 0 15px; font-size: 0.75rem;">STOK AKHIR</th>
                             <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">HARGA TEBUS</th>
                             <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">HARGA STOK</th>
                             <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">HARGA JUAL</th>
                             <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">JUAL KE KIOS</th>
-                            <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">PENEBUSAN</th>
+                            <th style="font-weight: 700; color: #475569; text-align: right; padding: 0 15px; font-size: 0.75rem;">NILAI MASUK</th>
                         </tr>
                     </thead>
                     <tbody id="dr-table-body">

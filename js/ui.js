@@ -1,4 +1,4 @@
-// UI Core Logic: Routing, Modals, Nav
+// Logika Inti UI: Perutean, Modal, Navigasi
 function setupRouting() {
     const navLinks = document.querySelectorAll('.nav-link[data-page]');
     navLinks.forEach(link => {
@@ -8,7 +8,7 @@ function setupRouting() {
             window.location.hash = page;
             navigateTo(page);
 
-            // Close sidebar on mobile after clicking menu
+            // Tutup sidebar di mobile setelah mengklik menu
             if (window.innerWidth <= 768) {
                 document.getElementById('sidebar').classList.remove('active');
                 document.body.classList.remove('sidebar-open');
@@ -46,7 +46,7 @@ function setupMobileNav() {
         menuToggle.addEventListener('click', toggleNav);
         if (closeBtn) closeBtn.addEventListener('click', toggleNav);
         
-        // Also allow clicking the logo header to close
+        // Juga izinkan mengklik header logo untuk menutup
         if (sidebarHeader) {
             sidebarHeader.style.cursor = 'pointer';
             sidebarHeader.addEventListener('click', (e) => {
@@ -56,7 +56,7 @@ function setupMobileNav() {
             });
         }
 
-        // Close when clicking overlay (outside)
+        // Tutup saat mengklik overlay (di luar)
         document.addEventListener('click', (e) => {
             if (window.innerWidth <= 768 && 
                 sidebar.classList.contains('active') &&
@@ -74,8 +74,8 @@ function navigateTo(pageId) {
     const template = document.getElementById(`tpl-${pageId}`);
     const titleDisplay = document.getElementById('page-display-title');
     
-    // Clear selection modes ONLY when truly switching to a DIFFERENT page
-    // This allows toggleSelectionMode to refresh the current page without losing the state
+    // Bersihkan mode pemilihan HANYA saat benar-benar beralih ke halaman yang BERBEDA
+    // Ini memungkinkan toggleSelectionMode untuk menyegarkan halaman saat ini tanpa kehilangan status
     if (!window.location.hash || window.location.hash.replace('#', '') !== pageId) {
         STATE.uiSelectionMode = {};
     }
@@ -93,7 +93,7 @@ function navigateTo(pageId) {
     contentArea.innerHTML = '';
     contentArea.appendChild(template.content.cloneNode(true));
 
-    // Inject Global Branch Filter if user has ALL access
+    // Masukkan Filter Cabang Global jika pengguna memiliki akses ALL
     const globalFilter = renderGlobalBranchFilter();
     if (globalFilter) {
         const header = contentArea.querySelector('.header-actions');
@@ -123,15 +123,35 @@ function navigateTo(pageId) {
 
     if (renderers[pageId]) renderers[pageId]();
     if (typeof lucide !== 'undefined') lucide.createIcons();
-    injectSortIcons(); // Added to fix table headers
+    injectSortIcons(); // Ditambahkan untuk memperbaiki header tabel
+    if (typeof updateIndeterminateStates === 'function') updateIndeterminateStates();
     updateSidebarBadges();
+    enhanceMobileTables(); // Tambahkan data-label untuk kartu mobile
+    initDatePickers(); // Format input menjadi DD/MM/YYYY
+}
+
+function enhanceMobileTables() {
+    const tables = document.querySelectorAll('table');
+    tables.forEach(table => {
+        const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+        const rows = table.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            cells.forEach((cell, index) => {
+                if (headers[index] && !cell.getAttribute('data-label')) {
+                    cell.setAttribute('data-label', headers[index]);
+                }
+            });
+        });
+    });
 }
 
 function updateSidebarBadges() {
     const approvalBadge = document.getElementById('approval-badge');
     const paymentBadge = document.getElementById('payment-badge');
     
-    // 1. APPROVAL BADGE (RED)
+    // 1. LENCANA PERSETUJUAN (MERAH)
     if (approvalBadge) {
         const approvalCount = STATE.orders.filter(o => {
             if (o.status !== 'MENUNGGU PERSETUJUAN') return false;
@@ -149,7 +169,7 @@ function updateSidebarBadges() {
         }
     }
 
-    // 2. PAYMENT BADGE (BLUE)
+    // 2. LENCANA PEMBAYARAN (BIRU)
     if (paymentBadge) {
         const paymentCount = STATE.orders.filter(o => {
             if (o.status !== 'MENUNGGU KONFIRMASI PEMBAYARAN') return false;
@@ -169,7 +189,7 @@ function updateSidebarBadges() {
     }
 }
 
-// Modal System
+// Sistem Modal
 function openModal(title, content, width = '500px') {
     const modal = document.getElementById('modal-container');
     const titleEl = document.getElementById('modal-title');
@@ -182,6 +202,7 @@ function openModal(title, content, width = '500px') {
         if (contentEl) contentEl.style.maxWidth = width;
         modal.style.display = 'flex';
         if (typeof lucide !== 'undefined') lucide.createIcons();
+        initDatePickers(); // Inisialisasi pemilih tanggal di modal
 
         // Auto-focus the first enabled input or button
         setTimeout(() => {
@@ -206,7 +227,7 @@ function openSuccessModal(title, message) {
     modal.classList.add('show');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // Auto-focus the "Mengerti" button so user can press Enter
+    // Fokus otomatis ke tombol "Mengerti" agar pengguna bisa menekan Enter
     const successBtn = modal.querySelector('.success-btn');
     if (successBtn) {
         setTimeout(() => successBtn.focus(), 100);
@@ -228,7 +249,7 @@ function openErrorModal(title, message) {
     modal.classList.add('show');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // Auto-focus the "Tutup" button so user can press Enter
+    // Fokus otomatis ke tombol "Tutup" agar pengguna bisa menekan Enter
     const closeBtn = modal.querySelector('.success-btn');
     if (closeBtn) {
         setTimeout(() => closeBtn.focus(), 100);
@@ -241,7 +262,7 @@ function closeErrorModal() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-// Toast System
+// Sistem Toast (Notifikasi Singkat)
 function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -264,7 +285,7 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Initialization Helpers
+// Pembantu Inisialisasi
 function updateHeaderUserInfo() {
     const nameEl = document.getElementById('header-user-name');
     const roleEl = document.getElementById('header-user-role');
@@ -276,7 +297,7 @@ function updateHeaderUserInfo() {
         nameEl.textContent = STATE.currentUser.name;
         roleEl.textContent = STATE.currentUser.role;
         
-        // Initial Avatar (First letter)
+        // Avatar Inisial (Huruf pertama)
         if (avatarInitial) avatarInitial.textContent = STATE.currentUser.name.charAt(0).toUpperCase();
         
         // Dropdown internal info
@@ -286,12 +307,12 @@ function updateHeaderUserInfo() {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    // Toggle Dropdown Event
+    // Event Toggle Dropdown
     const toggleBtn = document.getElementById('user-menu-toggle');
     const menu = document.getElementById('user-dropdown-menu');
     
     if (toggleBtn && menu) {
-        // Clone and replace to remove old listeners if any
+        // Klon dan ganti untuk menghapus listener lama jika ada
         const newToggle = toggleBtn.cloneNode(true);
         toggleBtn.parentNode.replaceChild(newToggle, toggleBtn);
         
@@ -321,7 +342,7 @@ function applyRolePermissions() {
         const page = link.getAttribute('data-page');
         let isAllowed = allowedPages.includes(page) || page === 'settings';
         
-        // Dashboard is hidden for KIOSK role
+        // Dasbor disembunyikan untuk peran KIOS
         if (page === 'dashboard' && role !== 'KIOS') {
             isAllowed = true;
         }
@@ -344,7 +365,7 @@ function toggleDropdown(event) {
     event.stopPropagation();
     const dropdown = event.currentTarget.querySelector('.dropdown-content');
     
-    // Close others
+    // Tutup yang lain
     document.querySelectorAll('.dropdown-content.show').forEach(d => {
         if (d !== dropdown) d.classList.remove('show');
     });

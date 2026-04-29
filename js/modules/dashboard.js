@@ -1,8 +1,8 @@
-// Main Dashboard View Module
+// Modul Tampilan Utama Dasbor
 function getDefaultWeekRange() {
     const now = new Date();
-    const day = now.getDay(); // 0 (Sun) to 6 (Sat)
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+    const day = now.getDay(); // 0 (Minggu) ke 6 (Sabtu)
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Sesuaikan ke hari Senin
     
     const monday = new Date(now.setDate(diff));
     const sunday = new Date(monday);
@@ -32,7 +32,7 @@ function renderDashboard() {
     const activityHead = document.getElementById('dashboard-activity-head');
     const activityBody = document.getElementById('recent-activity-body');
     
-    // Date Range Setup
+    // Pengaturan Rentang Tanggal
     if (!STATE.dashboardRange) {
         STATE.dashboardRange = getDefaultWeekRange();
     }
@@ -52,7 +52,7 @@ function renderDashboard() {
 
     const { start, end } = STATE.dashboardRange;
 
-    // Helper to check if date within range
+    // Pembantu untuk memeriksa apakah tanggal dalam rentang
     const isWithinRange = (dateStr) => {
         if (!dateStr) return false;
         return dateStr >= start && dateStr <= end;
@@ -61,7 +61,7 @@ function renderDashboard() {
     if (!statsGrid || !activityBody) return;
 
     if (STATE.currentUser.role === 'KIOS') {
-        // Kiosk Dashboard Logic
+        // Logika Dasbor Kios
         const myOrders = STATE.orders.filter(o => o.kiosk === STATE.currentUser.name && isWithinRange(o.date));
         const totalOrdered = round2(myOrders.reduce((sum, o) => round2(sum + (parseFloat(o.qty) || 0)), 0));
         const pendingCount = myOrders.filter(o => o.status === 'MENUNGGU PERSETUJUAN').length;
@@ -122,7 +122,7 @@ function renderDashboard() {
         `).join('') || `<tr><td colspan="5" align="center" style="padding:40px; color:var(--text-dim);">Belum ada riwayat pesanan di periode ini</td></tr>`;
 
     } else {
-        // Distributor Dashboard Logic
+        // Logika Dasbor Distributor
         const user = STATE.currentUser;
         const isExecutive = ['OWNER', 'MANAJER'].includes(user.role.toUpperCase());
         
@@ -131,27 +131,27 @@ function renderDashboard() {
         const penyaluranData = (isExecutive ? (STATE.penyaluran || []) : getFilteredData('penyaluran')).filter(p => isWithinRange(p.date));
         const pengeluaranFull = (STATE.pengeluaran || []).filter(ex => isWithinRange(ex.date));
         
-        // 1. Get Product Categories mapping
+        // 1. Ambil pemetaan Kategori Produk
         const productCategoryMap = {};
         const allProducts = STATE.products || [];
         allProducts.forEach(p => {
             productCategoryMap[p.name.toUpperCase()] = p.category || 'PUPUK';
         });
 
-        // 2. Initial Setup
+        // 2. Pengaturan Awal
         const itemColors = {
-            'UREA': '#10b981',   // Emerald
-            'NPK': '#3b82f6',    // Blue
-            'PHONSKA': '#f97316', // Orange
-            'ZA': '#8b5cf6',      // Purple
-            'ORGANIK': '#854d0e', // Brown
+            'UREA': '#10b981',   // Zamrud
+            'NPK': '#3b82f6',    // Biru
+            'PHONSKA': '#f97316', // Oranye
+            'ZA': '#8b5cf6',      // Ungu
+            'ORGANIK': '#854d0e', // Cokelat
             'PETROGANIK': '#854d0e',
             'DEFAULT': '#64748b'
         };
 
         const productStats = {};
         
-        // Initialize with all products from STATE.products, using code as key to distinguish same-name across branches
+        // Inisialisasi dengan semua produk dari STATE.products, gunakan kode sebagai kunci untuk membedakan nama yang sama antar cabang
         (STATE.products || []).forEach(p => {
             const key = p.code; // Use code for uniqueness
             const displayName = `${p.name} (${p.branch})`;
@@ -167,12 +167,12 @@ function renderDashboard() {
             }
         });
 
-        // Sisa DO filtering is tricky because Sisa DO is cumulative usually.
-        // However, if the user picks a range, they might expect stats for that range.
-        // For "SISA STOK DO", we use CURRENT stock regardless of range, 
-        // OR we filter the transactions and calculate stock based on history.
-        // Usually, a dashboard "Sisa DO" card shows REALTIME stock.
-        // But "TERKIRIM" and finance should definitely be within range.
+        // Filter Sisa DO agak rumit karena Sisa DO biasanya bersifat kumulatif.
+        // Namun, jika pengguna memilih rentang, mereka mungkin mengharapkan statistik untuk rentang tersebut.
+        // Untuk "SISA STOK DO", kami menggunakan stok SAAT INI tanpa memandang rentang, 
+        // ATAU kami memfilter transaksi dan menghitung stok berdasarkan riwayat.
+        // Biasanya, kartu dasbor "Sisa DO" menunjukkan stok REALTIME.
+        // Tetapi "TERKIRIM" dan keuangan pasti harus dalam rentang.
         
         penebusanData.forEach(p => {
             const prodName = (p.product || '').toUpperCase();
@@ -204,18 +204,20 @@ function renderDashboard() {
             }
         });
 
-        // 3. Group by Category
+        // 3. Kelompokkan berdasarkan Kategori
         const categories = {};
         Object.values(productStats).forEach((data) => {
             if (!categories[data.category]) categories[data.category] = [];
             categories[data.category].push(data);
         });
 
-        // 4. Operational Stats
+        // 4. Statistik Operasional
         const pendingOrders = ordersData.filter(o => o.status === 'MENUNGGU PERSETUJUAN').length;
         
-        // Group penyaluran in range by product and branch
-        const filteredPenyaluranData = penyaluranData.filter(p => p.status !== 'MENUNGGU PENGIRIMAN');
+        // Kelompokkan penyaluran dalam rentang berdasarkan produk dan cabang
+        const filteredPenyaluranData = penyaluranData.filter(p => 
+            p.status !== 'MENUNGGU PENGIRIMAN' && isWithinRange(p.date)
+        );
         
         const byproductBranch = {};
         const branches = STATE.settings?.branches || ['MAGETAN', 'SRAGEN'];
@@ -273,9 +275,9 @@ function renderDashboard() {
         const kasUmumRange = (isExecutive ? (STATE.kas_umum || []) : getFilteredData('kas_umum')).filter(k => isWithinRange(k.date));
         const kasAngkutRange = (isExecutive ? (STATE.kas_angkutan || []) : getFilteredData('kas_angkutan')).filter(k => isWithinRange(k.date));
         
-        // Saldo is cumulative, but for a "Range" filter, maybe show "Starting Saldo", "Changes", "Ending Saldo"?
-        // But usually "SALDO" in dashboard means current absolute balance.
-        // Let's calculate balance based on ALL time for "SALDO", but "TOTAL KELUAR" should be range.
+        // Saldo bersifat kumulatif, tetapi untuk filter "Rentang", mungkin tampilkan "Saldo Awal", "Perubahan", "Saldo Akhir"?
+        // Namun biasanya "SALDO" di dasbor berarti saldo absolut saat ini.
+        // Mari kita hitung saldo berdasarkan SEMUA waktu untuk "SALDO", tetapi "TOTAL KELUAR" harus dalam rentang.
         const kasUmumFull = isExecutive ? (STATE.kas_umum || []) : getFilteredData('kas_umum');
         const kasAngkutFull = isExecutive ? (STATE.kas_angkutan || []) : getFilteredData('kas_angkutan');
         
@@ -325,7 +327,7 @@ function renderDashboard() {
                 `).join('')}
             </div>
 
-            <!-- Operasional Section -->
+            <!-- Bagian Operasional -->
             <div class="dashboard-section-header">
                 <i data-lucide="activity" style="width: 20px; color: #8b5cf6;"></i>
                 <h3>RINGKASAN OPERASIONAL</h3>
@@ -347,7 +349,7 @@ function renderDashboard() {
             </div>
         `;
 
-        // SISA DO calculation (Using full data for real current stock)
+        // Perhitungan SISA DO (Menggunakan data lengkap untuk stok saat ini yang sebenarnya)
         const groupedByProduct = {};
         (STATE.products || []).forEach(p => {
             const name = p.name.toUpperCase().trim();

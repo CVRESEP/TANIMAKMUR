@@ -39,7 +39,10 @@ function renderProducts() {
             <td><span class="badge" style="background:#f1f5f9; color:var(--text-dim); border:1px solid var(--border);">${p.supplier || '-'}</span></td>
             <td><span style="color:var(--text-dim); font-size:0.8rem; display:block;">Beli:</span> ${formatCurrency(p.buyPrice || p.price)}</td>
             <td><span style="color:var(--primary); font-size:0.8rem; display:block;">Jual:</span> ${formatCurrency(p.sellPrice || p.price)}</td>
-            <td>${calculateStock(p.name).toFixed(1)} Ton</td>
+            <td>${calculateStock(p.name, p.branch).toFixed(1)} Ton</td>
+            <td style="font-weight: 700; color: ${calculateRemainingRedemption(p.name, p.branch) > 0 ? '#f59e0b' : '#10b981'};">
+                ${calculateRemainingRedemption(p.name, p.branch).toFixed(1)} Ton
+            </td>
             <td>
                 <div style="display: flex; gap: 5px;">
                     <button class="action-btn small t-icon" title="Edit" onclick="openEditProductModal('${p.code}')">

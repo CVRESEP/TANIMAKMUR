@@ -19,14 +19,82 @@ function renderPengeluaran() {
                 .reduce((sum, pyl) => sum + (parseFloat(pyl.qty) || 0), 0);
             
             const sisaTotal = totalKeluar - totalSalur;
+            const sisaTebus = calculateRemainingRedemption(p.name, p.branch);
             
             return `
-                <div class="card" style="padding: 15px; border-left: 4px solid var(--primary);">
-                    <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; margin-bottom: 5px;">SISA DO ${p.name}</div>
-                    <div style="font-size: 1.15rem; font-weight: 700; color: var(--primary);">${Math.max(0, sisaTotal).toFixed(1)} TON</div>
+                <div class="card" style="padding: 8px 12px; border-left: 4px solid var(--primary); display: flex; flex-direction: column; gap: 4px;">
+                    <div style="font-size: 0.75rem; font-weight: 800; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; margin-bottom: 4px;">${p.name}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.65rem; color: #64748b; font-weight: 600;">SISA GUDANG:</span>
+                        <span style="font-size: 0.85rem; font-weight: 800; color: var(--primary);">${Math.max(0, sisaTotal).toFixed(1)} T</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.65rem; color: #64748b; font-weight: 600;">SISA TEBUS:</span>
+                        <span style="font-size: 0.85rem; font-weight: 800; color: ${sisaTebus > 0 ? '#f59e0b' : '#10b981'};">${sisaTebus.toFixed(1)} T</span>
+                    </div>
                 </div>
             `;
         }).join('');
+    }
+
+    // Render Pending Penebusan List (DO paid but not fully in warehouse)
+    const pendingList = document.getElementById('pending-penebusan-list');
+    if (pendingList) {
+        const pendingPenebusan = getFilteredData('penebusan').filter(p => {
+            const alreadyOut = (STATE.pengeluaran || [])
+                .filter(o => o.do === p.do)
+                .reduce((sum, o) => round2(sum + (parseFloat(o.keluar) || 0)), 0);
+            return round2(p.qty - alreadyOut) > 0;
+        });
+
+        if (pendingPenebusan.length > 0) {
+            pendingList.innerHTML = `
+                <div class="card" style="margin-top: 20px; border-top: 4px solid #f59e0b;">
+                    <h3 style="font-size: 0.9rem; font-weight: 800; color: #92400e; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="alert-circle" style="width: 18px;"></i> DO PENEBUSAN BELUM MASUK GUDANG
+                    </h3>
+                    <div class="table-container">
+                        <table style="font-size: 0.85rem;">
+                            <thead style="background: #fffbeb;">
+                                <tr>
+                                    <th>TANGGAL</th>
+                                    <th>NO DO</th>
+                                    <th>PRODUK</th>
+                                    <th>QTY TEBUS</th>
+                                    <th>SISA BELUM MASUK</th>
+                                    <th>AKSI</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${pendingPenebusan.map(p => {
+                                    const out = (STATE.pengeluaran || [])
+                                        .filter(o => o.do === p.do)
+                                        .reduce((sum, o) => round2(sum + (parseFloat(o.keluar) || 0)), 0);
+                                    const sisa = round2(p.qty - out);
+                                    return `
+                                        <tr>
+                                            <td>${formatDate(p.date)}</td>
+                                            <td><strong>${p.do}</strong></td>
+                                            <td>${p.product} (${p.kabupaten})</td>
+                                            <td>${p.qty} T</td>
+                                            <td style="font-weight: 800; color: #d97706;">${sisa} T</td>
+                                            <td>
+                                                <button class="action-btn small primary" onclick="openAddPengeluaranModal('${p.do}')">
+                                                    CATAT MASUK
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            pendingList.innerHTML = '';
+        }
     }
 
     const allData = getFilteredData('pengeluaran');
@@ -128,10 +196,12 @@ function renderPengeluaran() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function openAddPengeluaranModal() {
-    const doAvailable = STATE.penebusan.filter(p => {
-        const out = STATE.pengeluaran.find(o => o.do === p.do);
-        return !out || out.keluar < p.qty;
+function openAddPengeluaranModal(defaultDo = '') {
+    const doAvailable = getFilteredData('penebusan').filter(p => {
+        const outTotal = STATE.pengeluaran
+            .filter(o => o.do === p.do)
+            .reduce((sum, o) => round2(sum + (parseFloat(o.keluar) || 0)), 0);
+        return round2(outTotal) < round2(p.qty);
     });
 
     const content = `
@@ -139,7 +209,8 @@ function openAddPengeluaranModal() {
             <div class="form-group">
                 <label>Pilih Nomor DO</label>
                 <select name="do_ref" required>
-                    ${doAvailable.map(d => `<option value="${d.do}">${d.do} - ${d.product} (${d.qty} Ton)</option>`).join('')}
+                    <option value="" disabled ${!defaultDo ? 'selected' : ''}>Pilih DO...</option>
+                    ${doAvailable.map(d => `<option value="${d.do}" ${d.do === defaultDo ? 'selected' : ''}>${d.do} - ${d.product} (${d.qty} Ton)</option>`).join('')}
                 </select>
             </div>
             <div class="form-group">

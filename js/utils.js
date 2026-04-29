@@ -21,19 +21,105 @@ function round2(val) {
     return Math.round((parseFloat(val) || 0) * 100) / 100;
 }
 
-function calculateStock(productName) {
+function initDatePickers() {
+    if (typeof flatpickr === 'undefined') return;
+    
+    const inputs = document.querySelectorAll('input[type="date"], .datepicker');
+    
+    inputs.forEach(input => {
+        if (input._flatpickr) {
+            // Jika sudah diinisialisasi, pastikan tampilan benar jika nilai berubah
+            if (input.value && input._flatpickr.currentDateStr !== input.value) {
+                input._flatpickr.setDate(input.value, false);
+            }
+            return;
+        }
+        
+        flatpickr(input, {
+            dateFormat: "Y-m-d", 
+            altInput: true,      
+            altFormat: "d/m/Y",  
+            altInputClass: "flatpickr-premium-input",
+            allowInput: true,
+            disableMobile: true,
+            onReady: function(selectedDates, dateStr, instance) {
+                // Sinkronisasi awal jika input memiliki nilai
+                if (input.value) {
+                    instance.setDate(input.value, false);
+                }
+            },
+            onChange: function(selectedDates, dateStr, instance) {
+                // Perbarui nilai input tersembunyi
+                input.value = dateStr;
+                
+                // Pemicu event
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                
+                // Tangani onchange inline
+                const onchangeAttr = input.getAttribute('onchange');
+                if (onchangeAttr) {
+                    try {
+                        const funcName = onchangeAttr.replace('()', '').trim();
+                        if (typeof window[funcName] === 'function') {
+                            window[funcName]();
+                        } else {
+                            new Function(onchangeAttr).call(input);
+                        }
+                    } catch (e) {}
+                }
+            }
+        });
+    });
+}
+
+function calculateStock(productName, branchName) {
     if (!STATE.pengeluaran || !STATE.penyaluran) return 0;
     const pNameUpper = (productName || '').toUpperCase();
+    const branchUpper = (branchName || '').toUpperCase();
     
     const totalOut = STATE.pengeluaran
-        .filter(p => (p.product || '').toUpperCase() === pNameUpper)
+        .filter(p => 
+            (p.product || '').toUpperCase() === pNameUpper && 
+            (p.kabupaten || p.branch || '').toUpperCase() === branchUpper
+        )
         .reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0);
     
     const totalDispatched = STATE.penyaluran
-        .filter(p => (p.product || '').toUpperCase() === pNameUpper && p.status !== 'MENUNGGU PENGIRIMAN')
+        .filter(p => 
+            (p.product || '').toUpperCase() === pNameUpper && 
+            (p.branch || p.kabupaten || '').toUpperCase() === branchUpper &&
+            p.status !== 'MENUNGGU PENGIRIMAN'
+        )
         .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0);
         
     return round2(totalOut - totalDispatched);
+}
+
+/**
+ * Menghitung sisa penebusan yang belum dikeluarkan DO-nya ke gudang.
+ * Sisa = Total Penebusan - Total Pengeluaran
+ */
+function calculateRemainingRedemption(productName, branchName) {
+    if (!STATE.penebusan || !STATE.pengeluaran) return 0;
+    const pNameUpper = (productName || '').toUpperCase();
+    const branchUpper = (branchName || '').toUpperCase();
+    
+    const totalPurchased = STATE.penebusan
+        .filter(p => 
+            (p.product || '').toUpperCase() === pNameUpper && 
+            (p.branch || p.kabupaten || '').toUpperCase() === branchUpper
+        )
+        .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0);
+        
+    const totalOut = STATE.pengeluaran
+        .filter(p => 
+            (p.product || '').toUpperCase() === pNameUpper && 
+            (p.kabupaten || p.branch || '').toUpperCase() === branchUpper
+        )
+        .reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0);
+        
+    return round2(totalPurchased - totalOut);
 }
 
 function getFilteredData(type) {
@@ -43,7 +129,7 @@ function getFilteredData(type) {
     let data = STATE[type] || [];
     if (!Array.isArray(data)) return [];
 
-    // 1. Filter Cabang (Branch Filter)
+    // 1. Filter Cabang
     const filterBranch = (user.branch === 'ALL') ? (STATE.activeBranchFilter || 'ALL') : user.branch;
     let filtered = data;
     
@@ -56,11 +142,21 @@ function getFilteredData(type) {
         });
     }
 
-    // 2. Filter Tanggal (Date Filter)
-    if (STATE.globalDateFilter.start || STATE.globalDateFilter.end) {
+    // 2. Filter Tanggal
+    const hasSelectedMonths = Array.isArray(STATE.globalDateFilter.selectedMonths);
+
+    if (hasSelectedMonths || STATE.globalDateFilter.start || STATE.globalDateFilter.end) {
         filtered = filtered.filter(d => {
             const itemDate = d.date || d.tanggal;
-            if (!itemDate) return true; // Baris tanpa tanggal tetap muncul
+            if (!itemDate) return true; 
+            
+            if (hasSelectedMonths) {
+                // Jika array kosong, berarti pengguna menghapus semua centang secara eksplisit.
+                if (STATE.globalDateFilter.selectedMonths.length === 0) return false;
+                
+                const itemMonth = String(itemDate).substring(0, 7); // YYYY-MM
+                if (!STATE.globalDateFilter.selectedMonths.includes(itemMonth)) return false;
+            }
             
             if (STATE.globalDateFilter.start && itemDate < STATE.globalDateFilter.start) return false;
             if (STATE.globalDateFilter.end && itemDate > STATE.globalDateFilter.end) return false;
@@ -68,7 +164,7 @@ function getFilteredData(type) {
         });
     }
 
-    // 3. Filter Pencarian (Search Filter)
+    // 3. Filter Pencarian
     if (STATE.globalSearch) {
         const query = STATE.globalSearch.toLowerCase();
         filtered = filtered.filter(d => {
@@ -78,14 +174,14 @@ function getFilteredData(type) {
         });
     }
 
-    // 4. Sorting Logic
+    // 4. Logika Pengurutan
     const { column, order } = STATE.sortConfig;
     if (column) {
         filtered.sort((a, b) => {
             let valA = a[column];
             let valB = b[column];
 
-            // Handle date sorting — ISO YYYY-MM-DD strings sort correctly as strings
+            // Tangani pengurutan tanggal — string ISO YYYY-MM-DD diurutkan dengan benar sebagai string
             if (column === 'date' || column === 'tanggal') {
                 valA = valA || '';
                 valB = valB || '';
@@ -94,7 +190,7 @@ function getFilteredData(type) {
                 return 0;
             }
 
-            // Handle numeric values
+            // Tangani nilai numerik
             const numA = parseFloat(valA);
             const numB = parseFloat(valB);
             if (!isNaN(numA) && !isNaN(numB)) {
@@ -124,29 +220,29 @@ function handleSort(column, type) {
     
     saveState();
     
-    // Rerender current view
+    // Render ulang tampilan saat ini
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     navigateTo(hash);
     
-    // Inject icons after render
+    // Masukkan ikon setelah render
     setTimeout(injectSortIcons, 50);
 }
 
 function injectSortIcons() {
     const headers = document.querySelectorAll('th[onclick*="handleSort"]');
     headers.forEach(th => {
-        // Extract column name from onclick="handleSort('columnName')"
+        // Ambil nama kolom dari onclick="handleSort('columnName')"
         const match = th.getAttribute('onclick').match(/handleSort\('([^']+)'\)/);
         if (match) {
             const col = match[1];
-            // Remove any existing sort icons/placeholders
+            // Hapus ikon/placeholder pengurutan yang ada
             const existingIcon = th.querySelector('.sort-icon');
             if (existingIcon) existingIcon.remove();
             
-            // Clean template literals if they were accidentally rendered as text
+            // Bersihkan literal template jika tidak sengaja dirender sebagai teks
             th.innerHTML = th.innerHTML.replace(/\$\{renderSortIcon\([^)]+\)\}/g, '').trim();
             
-            // Add the new icon
+            // Tambahkan ikon baru
             th.insertAdjacentHTML('beforeend', renderSortIcon(col));
         }
     });
@@ -164,7 +260,7 @@ function updateGlobalBranchFilter(val) {
     STATE.activeBranchFilter = val;
     saveState();
     
-    // Rerender current page
+    // Render ulang halaman saat ini
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     navigateTo(hash);
 }
@@ -177,10 +273,10 @@ function renderGlobalBranchFilter() {
     const current = STATE.activeBranchFilter || 'ALL';
     
     return `
-        <div class="global-branch-filter" style="display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 5px 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
-            <i data-lucide="filter" style="width: 14px; color: var(--text-dim);"></i>
-            <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase;">Filter Wilayah:</span>
-            <select onchange="updateGlobalBranchFilter(this.value)" style="border: none; background: transparent; font-weight: 700; color: var(--primary); cursor: pointer; padding: 2px 5px; outline: none; font-size: 0.85rem;">
+        <div class="global-branch-filter" style="display: flex; align-items: center; gap: 6px; background: #f8fafc; padding: 2px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <i data-lucide="filter" style="width: 12px; color: var(--text-dim);"></i>
+            <span style="font-size: 0.6rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px;">WILAYAH:</span>
+            <select onchange="updateGlobalBranchFilter(this.value)" style="border: none; background: transparent; font-weight: 800; color: var(--primary); cursor: pointer; padding: 2px 0; outline: none; font-size: 0.75rem;">
                 <option value="ALL" ${current === 'ALL' ? 'selected' : ''}>SEMUA WILAYAH</option>
                 ${(STATE.settings?.branches || ['MAGETAN', 'SRAGEN']).map(b => 
                     `<option value="${b}" ${current === b ? 'selected' : ''}>${b}</option>`
@@ -198,7 +294,7 @@ function paginateData(data, type) {
     const currentPage = STATE.currentPages[type] || 1;
     const startIndex = (currentPage - 1) * limitInt;
     
-    // Ensure we don't return an empty page if data was deleted
+    // Pastikan tidak mengembalikan halaman kosong jika data dihapus
     if (startIndex >= data.length && data.length > 0) {
         STATE.currentPages[type] = Math.ceil(data.length / limitInt);
         return paginateData(data, type);
@@ -227,12 +323,12 @@ function renderBranchSelector(name = 'branch', selectedBranch = '', label = 'Cab
     const user = STATE.currentUser;
     const isRestricted = !['OWNER', 'MANAJER'].includes(user.role.toUpperCase());
     
-    // Default branch for the selector
+    // Cabang default untuk selektor
     let finalBranch = selectedBranch || (user.branch === 'ALL' ? 'MAGETAN' : user.branch);
     if (finalBranch === 'ALL' && isRestricted) finalBranch = user.branch;
 
-    // We only show the read-only view if the user is truly restricted AND it's not for a selection
-    // But in most cases like product/user creation, we want the dropdown restricted to their branch
+    // Kami hanya menampilkan tampilan baca-saja jika pengguna benar-benar dibatasi DAN ini bukan untuk pemilihan
+    // Tetapi dalam kebanyakan kasus seperti pembuatan produk/pengguna, kami ingin dropdown dibatasi ke cabang mereka
     if (isRestricted && user.branch !== 'ALL' && !includeAll) {
         return `
             <div class="form-group">
@@ -259,55 +355,107 @@ function renderBranchSelector(name = 'branch', selectedBranch = '', label = 'Cab
 }
 
 function renderRowLimitSelector(type) {
-    const currentLimit = STATE.rowLimits[type] || 10;
     return `
-        <div class="table-header-controls" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid var(--border);">
-            <!-- Row 1: Search & Date Filters -->
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end;">
-                <div class="filter-group" style="flex: 1; min-width: 250px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Cari Data</label>
-                    <div style="position: relative;">
-                        <i data-lucide="search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; color: var(--text-dim);"></i>
-                        <input type="text" placeholder="Ketik nama kios, produk, atau nomor DO..." 
-                               value="${STATE.globalSearch || ''}"
-                               oninput="handleSearch(this.value)"
-                               style="width: 100%; padding: 10px 15px 10px 40px; border-radius: 8px; border: 1px solid var(--border); outline: none; transition: border-color 0.2s; font-size: 0.9rem;">
+        <div class="table-header-controls" style="position: relative; background: #fff; padding: 12px 16px; border: 1px solid var(--border); border-bottom: none; border-radius: 12px 12px 0 0; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px;">
+                <!-- Kiri: Pencarian -->
+                <div style="flex: 1; min-width: 200px; position: relative;">
+                    <i data-lucide="search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--primary); opacity: 0.6;"></i>
+                    <input type="text" placeholder="Ketik untuk mencari data..." 
+                           value="${STATE.globalSearch || ''}"
+                           oninput="handleSearch(this.value)"
+                           style="width: 100%; padding: 10px 15px 10px 42px; border-radius: 12px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 0.85rem; outline: none; transition: all 0.2s;">
+                </div>
+
+                <!-- Tengah: Tombol Filter Bulan -->
+                <div style="display: flex; justify-content: center; position: relative;">
+                    <button onclick="toggleMonthTree(event)" class="action-btn" style="background: #fff; border: 1px solid var(--primary); border-radius: 10px; height: 38px; padding: 0 15px; font-weight: 700; font-size: 0.75rem; color: var(--primary); display: flex; align-items: center; gap: 8px; position: relative; z-index: 10001;">
+                        <i data-lucide="calendar" style="width: 18px; height: 18px;"></i> 
+                        Pilih Bulan
+                        <i data-lucide="chevron-down" style="width: 14px;"></i>
+                    </button>
+
+                    <!-- Menu Dropdown Pohon Bulan Kompak (Sekarang tertambat ke tombol) -->
+                    <div id="month-tree-dropdown" class="month-tree-menu ${STATE.uiMonthFilterExpanded ? 'show' : ''}" 
+                         style="display: ${STATE.uiMonthFilterExpanded ? 'block' : 'none'}; position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); width: 240px; padding: 12px; border-radius: 10px; background: #fff; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); z-index: 10000; border: 1px solid #e2e8f0; text-align: left;">
+                        <div style="margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; color: var(--primary);">
+                        <input type="checkbox" id="all-months-checkbox" ${STATE.globalDateFilter.selectedMonths.length === 24 ? 'checked' : ''} onchange="handleAllMonthsCheckbox(this.checked)" style="width: 14px; height: 14px;">
+                        Pilih Semua
+                            </label>
+                        </div>
+                        
+                        ${(() => {
+                            if (!STATE.availableMonths || STATE.availableMonths.length === 0) updateAvailableMonths();
+                            
+                            // Kelompokkan bulan yang tersedia berdasarkan tahun
+                            const yearsMap = {};
+                            STATE.availableMonths.forEach(m => {
+                                const y = m.split('-')[0];
+                                if (!yearsMap[y]) yearsMap[y] = [];
+                                yearsMap[y].push(m);
+                            });
+
+                            const sortedYears = Object.keys(yearsMap).sort().reverse();
+                            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+                            return sortedYears.map(year => {
+                                const monthsInYear = yearsMap[year].sort();
+                                const selectedInYear = monthsInYear.filter(m => STATE.globalDateFilter.selectedMonths.includes(m));
+                                const isYearChecked = selectedInYear.length === monthsInYear.length;
+                                const isExpanded = (STATE.uiExpandedYears || []).includes(parseInt(year));
+                                
+                                return `
+                                    <div class="tree-node ${isExpanded ? 'expanded' : ''}" style="margin-bottom: 5px;">
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <span onclick="toggleYearExpand(event, ${year})" style="cursor: pointer; font-weight: 800; color: #64748b; width: 15px; font-family: monospace; display: inline-block; text-align: center;">${isExpanded ? '-' : '+'}</span>
+                                            <label style="display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.85rem; cursor: pointer;">
+                                                <input type="checkbox" id="year-checkbox-${year}" ${isYearChecked ? 'checked' : ''} onchange="handleYearCheckbox(${year}, this.checked)" style="width: 14px; height: 14px;">
+                                                ${year}
+                                            </label>
+                                        </div>
+                                        <div class="tree-children" style="margin-left: 20px; display: ${isExpanded ? 'block' : 'none'}; border-left: 1px dashed #cbd5e1; padding-left: 8px;">
+                                            ${monthsInYear.map(monthStr => {
+                                                const monthIndex = parseInt(monthStr.split('-')[1]) - 1;
+                                                const monthName = monthNames[monthIndex];
+                                                const isMonthChecked = STATE.globalDateFilter.selectedMonths.includes(monthStr);
+                                                return `
+                                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; cursor: pointer; padding: 2px 0;">
+                                                        <input type="checkbox" ${isMonthChecked ? 'checked' : ''} onchange="handleMonthCheckbox(${year}, ${monthIndex}, this.checked)" style="width: 12px; height: 12px;">
+                                                        <span>${monthName}</span>
+                                                    </label>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                        })()}
                     </div>
                 </div>
-                
-                <div class="filter-group" style="min-width: 150px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase;">Dari Tanggal</label>
-                    <input type="date" value="${STATE.globalDateFilter.start || ''}" 
-                           onchange="handleDateFilter('start', this.value)"
-                           style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); outline: none; font-size: 0.9rem;">
-                </div>
 
-                <div class="filter-group" style="min-width: 150px;">
-                    <label style="display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase;">Sampai Tanggal</label>
-                    <input type="date" value="${STATE.globalDateFilter.end || ''}" 
-                           onchange="handleDateFilter('end', this.value)"
-                           style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); outline: none; font-size: 0.9rem;">
+                <!-- Kanan: Rentang Tanggal & Reset -->
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="date-range-pill">
+                        <span class="label">RENTANG</span>
+                        <div class="date-input-group">
+                            <i data-lucide="calendar"></i>
+                            <input type="date" value="${STATE.globalDateFilter.start || ''}" 
+                                   onchange="handleDateFilter('start', this.value)">
+                        </div>
+                        <span class="separator">|</span>
+                        <div class="date-input-group">
+                            <i data-lucide="calendar"></i>
+                            <input type="date" value="${STATE.globalDateFilter.end || ''}" 
+                                   onchange="handleDateFilter('end', this.value)">
+                        </div>
+                    </div>
+                    <button class="action-btn" onclick="resetFilters()" style="background: #fff; border: 1px solid #e2e8f0; color: #64748b; border-radius: 12px; height: 42px; padding: 0 15px; font-weight: 700; font-size: 0.75rem; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;">
+                        <i data-lucide="refresh-cw" style="width: 14px;"></i> RESET
+                    </button>
                 </div>
-
-                <button class="action-btn" onclick="resetFilters()" style="height: 40px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; font-weight: 600;">
-                    RESET FILTER
-                </button>
             </div>
 
-            <hr style="border: 0; border-top: 1px solid var(--border); margin: 0;">
-
-            <!-- Row 2: Limit Selector -->
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div class="row-limit-selector" style="font-size: 0.85rem; color: var(--text-dim); display: flex; align-items: center; gap: 8px;">
-                    Tampilkan 
-                    <select onchange="updateRowLimit('${type}', this.value)" style="padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); font-weight: 700; color: var(--primary); outline: none; background: #f8fafc; cursor: pointer;">
-                        <option value="10" ${currentLimit == 10 ? 'selected' : ''}>10</option>
-                        <option value="50" ${currentLimit == 50 ? 'selected' : ''}>50</option>
-                        <option value="100" ${currentLimit == 100 ? 'selected' : ''}>100</option>
-                        <option value="all" ${currentLimit == 'all' ? 'selected' : ''}>Semua</option>
-                    </select>
-                    baris data per halaman
-                </div>
             </div>
         </div>
     `;
@@ -369,10 +517,123 @@ function handleDateFilter(type, val) {
     handleSearch(STATE.globalSearch); // Panggil handleSearch untuk memicu render parsial
 }
 
+function handleMonthFilter(monthNum) {
+    // Fungsi ini sekarang sudah usang karena pemilih pohon tetapi tetap dipertahankan untuk kompatibilitas jika diperlukan
+    if (!monthNum) return;
+    const year = new Date().getFullYear();
+    const startDate = `${year}-${monthNum.toString().padStart(2, '0')}-01`;
+    const lastDay = new Date(year, monthNum, 0).getDate();
+    const endDate = `${year}-${monthNum.toString().padStart(2, '0')}-${lastDay}`;
+    
+    STATE.globalDateFilter.start = startDate;
+    STATE.globalDateFilter.end = endDate;
+    STATE.globalDateFilter.selectedMonths = []; // Clear tree selection when using range
+    
+    navigateToCurrentPage();
+}
+
+// Tree Selector Helpers
+window.toggleMonthTree = function(e) {
+    if (e) e.stopPropagation();
+    STATE.uiMonthFilterExpanded = !STATE.uiMonthFilterExpanded;
+    
+    // Render ulang halaman untuk menampilkan/menyembunyikan area
+    const hash = window.location.hash.replace('#', '') || 'dashboard';
+    navigateTo(hash);
+};
+
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('month-tree-dropdown');
+    const trigger = e.target.closest('button[onclick*="toggleMonthTree"]');
+    
+    if (STATE.uiMonthFilterExpanded && dropdown && !dropdown.contains(e.target) && !trigger) {
+        STATE.uiMonthFilterExpanded = false;
+        const hash = window.location.hash.replace('#', '') || 'dashboard';
+        navigateTo(hash);
+    }
+});
+
+window.toggleYearExpand = function(e, year) {
+    e.stopPropagation();
+    if (!STATE.uiExpandedYears) STATE.uiExpandedYears = [];
+    
+    if (STATE.uiExpandedYears.includes(year)) {
+        STATE.uiExpandedYears = STATE.uiExpandedYears.filter(y => y !== year);
+    } else {
+        STATE.uiExpandedYears.push(year);
+    }
+    
+    // Render ulang halaman saat ini secara khusus untuk mencerminkan ekspansi
+    const hash = window.location.hash.replace('#', '') || 'dashboard';
+    navigateTo(hash);
+};
+
+window.handleMonthCheckbox = function(year, monthIndex, checked) {
+    const monthStr = `${year}-${(monthIndex + 1).toString().padStart(2, '0')}`;
+    
+    if (checked) {
+        if (!STATE.globalDateFilter.selectedMonths.includes(monthStr)) {
+            STATE.globalDateFilter.selectedMonths.push(monthStr);
+        }
+    } else {
+        STATE.globalDateFilter.selectedMonths = STATE.globalDateFilter.selectedMonths.filter(m => m !== monthStr);
+    }
+    
+    // Hapus rentang jika bulan dipilih untuk menghindari konflik
+    if (STATE.globalDateFilter.selectedMonths.length > 0) {
+        STATE.globalDateFilter.start = '';
+        STATE.globalDateFilter.end = '';
+    }
+    navigateToCurrentPage();
+};
+
+window.handleYearCheckbox = function(year, checked) {
+    const monthsInYear = STATE.availableMonths.filter(m => m.startsWith(`${year}-`));
+    
+    if (checked) {
+        monthsInYear.forEach(m => {
+            if (!STATE.globalDateFilter.selectedMonths.includes(m)) {
+                STATE.globalDateFilter.selectedMonths.push(m);
+            }
+        });
+    } else {
+        STATE.globalDateFilter.selectedMonths = STATE.globalDateFilter.selectedMonths.filter(m => !monthsInYear.includes(m));
+    }
+    
+    if (STATE.globalDateFilter.selectedMonths.length > 0) {
+        STATE.globalDateFilter.start = '';
+        STATE.globalDateFilter.end = '';
+    }
+    navigateToCurrentPage();
+};
+
+window.handleAllMonthsCheckbox = function(checked) {
+    if (checked) {
+        STATE.globalDateFilter.selectedMonths = [...STATE.availableMonths];
+        STATE.globalDateFilter.start = '';
+        STATE.globalDateFilter.end = '';
+    } else {
+        STATE.globalDateFilter.selectedMonths = [];
+    }
+    navigateToCurrentPage();
+};
+
+function navigateToCurrentPage() {
+    Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
+    const hash = window.location.hash.replace('#', '') || 'dashboard';
+    navigateTo(hash);
+}
+
 function resetFilters() {
     STATE.globalSearch = '';
-    STATE.globalDateFilter = { start: '', end: '' };
-    STATE.sortConfig = { column: 'date', order: 'desc' }; // Reset ke default tanggal
+    STATE.globalDateFilter = { 
+        start: '', 
+        end: '', 
+        selectedMonths: STATE.availableMonths.slice(0, 2)
+    };
+    STATE.uiExpandedYears = [];
+    STATE.uiMonthFilterExpanded = false;
+    STATE.sortConfig = { column: 'date', order: 'desc' };
     Object.keys(STATE.currentPages).forEach(k => STATE.currentPages[k] = 1);
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     navigateTo(hash);
@@ -387,6 +648,51 @@ function updateRowLimit(type, value) {
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     navigateTo(hash);
 }
+
+window.updateAvailableMonths = function() {
+    const months = new Set();
+    const dataKeys = ['penebusan', 'pengeluaran', 'penyaluran', 'kas_angkutan', 'kas_umum'];
+    
+    dataKeys.forEach(key => {
+        const data = STATE[key] || [];
+        data.forEach(item => {
+            const dateStr = item.date || item.tanggal;
+            if (dateStr && typeof dateStr === 'string' && dateStr.length >= 7) {
+                // Ensure format YYYY-MM
+                const parts = dateStr.split('-');
+                if (parts.length >= 2) {
+                    months.add(`${parts[0]}-${parts[1].padStart(2, '0')}`);
+                }
+            }
+        });
+    });
+
+    STATE.availableMonths = Array.from(months).sort().reverse();
+    
+    // Default ke 2 BULAN TERAKHIR dari data yang tersedia
+    if (STATE.globalDateFilter.selectedMonths.length === 0 && STATE.availableMonths.length > 0) {
+        STATE.globalDateFilter.selectedMonths = STATE.availableMonths.slice(0, 2);
+    }
+};
+
+window.updateIndeterminateStates = function() {
+    const allCount = STATE.globalDateFilter.selectedMonths.length;
+    const availableCount = STATE.availableMonths.length;
+    const allCheckbox = document.getElementById('all-months-checkbox');
+    if (allCheckbox) {
+        allCheckbox.indeterminate = (allCount > 0 && allCount < availableCount);
+    }
+
+    const years = [...new Set(STATE.availableMonths.map(m => m.split('-')[0]))];
+    years.forEach(year => {
+        const yearCheckbox = document.getElementById(`year-checkbox-${year}`);
+        if (yearCheckbox) {
+            const monthsInYear = STATE.availableMonths.filter(m => m.startsWith(`${year}-`));
+            const selectedInYear = monthsInYear.filter(m => STATE.globalDateFilter.selectedMonths.includes(m));
+            yearCheckbox.indeterminate = (selectedInYear.length > 0 && selectedInYear.length < monthsInYear.length);
+        }
+    });
+};
 
 function renderTableFooter(type, total, shown) {
     const limit = STATE.rowLimits[type] || 10;
@@ -437,9 +743,20 @@ function renderTableFooter(type, total, shown) {
     const endIndex = limit === 'all' ? total : Math.min(total, currentPage * parseInt(limit));
 
     return `
-        <div class="table-footer-info" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 0; border-top: 1px solid var(--border); margin-top: 10px; font-size: 0.85rem; color: var(--text-dim);">
-            <div>
-                Menampilkan <strong>${total > 0 ? startIndex : 0} - ${endIndex}</strong> dari <strong>${total}</strong> total data
+        <div class="table-footer-info" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-top: 1px solid var(--border); margin-top: 0; font-size: 0.8rem; color: var(--text-dim); background: #f8fafc;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div>
+                    Menampilkan <strong>${total > 0 ? startIndex : 0} - ${endIndex}</strong> dari <strong>${total}</strong> total data
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px; border-left: 1px solid #e2e8f0; padding-left: 15px;">
+                    Tampilkan:
+                    <select onchange="updateRowLimit('${type}', this.value)" style="border: 1px solid #cbd5e1; background: #fff; font-weight: 700; color: var(--primary); cursor: pointer; padding: 2px 4px; border-radius: 4px; outline: none; font-size: 0.75rem;">
+                        <option value="10" ${limit == 10 ? 'selected' : ''}>10</option>
+                        <option value="50" ${limit == 50 ? 'selected' : ''}>50</option>
+                        <option value="100" ${limit == 100 ? 'selected' : ''}>100</option>
+                        <option value="all" ${limit == 'all' ? 'selected' : ''}>Semua</option>
+                    </select>
+                </div>
             </div>
             ${paginationHtml}
         </div>
@@ -458,12 +775,12 @@ function parseNumberInput(value) {
     return parseFloat(value.toString().replace(/\./g, '')) || 0;
 }
 
-// Excel Import/Export Logic
+// Logika Impor/Ekspor Excel
 function exportToExcel(type) {
     let data = [];
     let filename = `tani_makmur_${type}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
-    // Special handling for kiosks_dir which is a filtered 'users' view
+    // Penanganan khusus untuk kiosks_dir yang merupakan tampilan 'pengguna' yang difilter
     if (type === 'kiosks_dir') {
         data = STATE.users.filter(u => u.role === 'KIOS');
     } else {
@@ -509,11 +826,11 @@ function importFromExcel(type, file) {
         // Merge logic with data processing
         if (type === 'kiosks_dir') {
             const processedKiosks = jsonData.map(item => {
-                // Determine name from various possible columns and trim values
+                // Tentukan nama dari berbagai kolom yang memungkinkan dan rapikan nilai
                 const rawName = String(item['NAMA KIOS'] || item.name || 'TANPA NAMA').trim();
                 const baseUsername = String(item.username || rawName).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
                 
-                // Ensure Unique Username
+                // Pastikan Username Unik
                 let finalUsername = baseUsername;
                 let counter = 1;
                 while (STATE.users.find(u => u.username === finalUsername)) {
@@ -552,11 +869,11 @@ function importFromExcel(type, file) {
                     notes: String(item['KETERANGAN'] || item.notes || item.NOTES || '').trim(),
                 };
             });
-            // Filter invalid records where DO might be completely empty
+            // Filter catatan tidak valid di mana DO mungkin benar-benar kosong
             const validData = processedPenebusan.filter(p => p.do !== '');
             STATE.penebusan = [...(STATE.penebusan || []), ...validData];
         } else {
-            // Generic import: also trim all keys and values
+            // Impor generik: juga rapikan semua kunci dan nilai
             const processedData = jsonData.map(row => {
                 const cleanRow = {};
                 Object.keys(row).forEach(k => {
@@ -571,7 +888,7 @@ function importFromExcel(type, file) {
         saveState();
         openSuccessModal('IMPORT BERHASIL', `${jsonData.length} data telah berhasil diimpor ke sistem.`);
         
-        // Refresh Current Page
+        // Muat Ulang Halaman Saat Ini
         const currentHash = window.location.hash.replace('#', '') || 'dashboard';
         navigateTo(currentHash);
     };
@@ -582,7 +899,7 @@ function toggleSelectionMode(type) {
     if (!STATE.uiSelectionMode) STATE.uiSelectionMode = {};
     STATE.uiSelectionMode[type] = !STATE.uiSelectionMode[type];
     
-    // Rerender current page
+    // Render ulang halaman saat ini
     const currentHash = window.location.hash.replace('#', '') || 'dashboard';
     navigateTo(currentHash);
 }
@@ -592,7 +909,7 @@ function bulkDelete(type) {
     if (checked.length === 0) return openErrorModal('HAPUS GAGAL', 'Pilih data yang akan dihapus!');
     
     if (confirm(`Hapus ${checked.length} data terpilih?`)) {
-        // ID mapping based on type
+        // Pemetaan ID berdasarkan tipe
         const idMap = {
             'products': 'code',
             'penebusan': 'do',
@@ -630,7 +947,7 @@ function renderSelectionActions(type) {
     const isSelectMode = STATE.uiSelectionMode[type];
     const container = document.getElementById(`${type}-selection-actions`);
     
-    // Select all buttons that toggle this specific mode
+    // Pilih semua tombol yang mengaktifkan mode spesifik ini
     const toggleBtns = document.querySelectorAll(`button[onclick*="toggleSelectionMode('${type}')"]`);
     toggleBtns.forEach(btn => {
         if (isSelectMode) {
@@ -685,7 +1002,7 @@ async function sendAutoNotification(to, message, label = 'Pesan', tgChatId = nul
 
     const apiBaseRaw = API_BASE.replace('/load-state', '');
 
-    // 1. Send WhatsApp (if phone provided)
+    // 1. Kirim WhatsApp (jika nomor telepon disediakan)
     if (to) {
         try {
             const response = await fetch(`${apiBaseRaw}/send-wa`, {
@@ -697,7 +1014,7 @@ async function sendAutoNotification(to, message, label = 'Pesan', tgChatId = nul
         } catch (e) {}
     }
 
-    // 2. Send Telegram (if TG Chat ID provided)
+    // 2. Kirim Telegram (jika ID Chat TG disediakan)
     const effectiveTgId = tgChatId || STATE.settings?.tg_owner_chat_id;
     if (effectiveTgId && STATE.settings?.tg_bot_token) {
         try {

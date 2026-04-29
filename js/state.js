@@ -43,12 +43,16 @@ const DEFAULT_STATE = {
         drivers: 1
     },
     uiSelectionMode: {},
+    uiMonthFilterExpanded: false,
+    uiExpandedYears: [],
     activeBranchFilter: 'ALL',
     globalSearch: '',
     globalDateFilter: {
         start: '',
-        end: ''
+        end: '',
+        selectedMonths: []
     },
+    availableMonths: [],
     sortConfig: { column: 'date', order: 'desc' },
     settings: {
         company_name: 'TANI MAKMUR',
@@ -152,6 +156,7 @@ function saveState(immediate = false) {
 let syncTimer = null;
 let isSyncing = false;
 let needAnotherSync = false;
+let syncFailureCount = 0; // Added failure counter
 
 function syncToServer(immediate = false) {
     DB_SYNC_DIRTY = true;
@@ -186,33 +191,37 @@ function syncToServer(immediate = false) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ state: payload }),
-                keepalive: true
+                keepalive: true,
+                signal: AbortSignal.timeout(30000) // Increase timeout to 30s
             });
             
             if (r.ok) {
                 if (!needAnotherSync) {
                     DB_SYNC_DIRTY = false;
                 }
+                syncFailureCount = 0; // Reset on success
                 updateSyncBadge('online');
             } else {
                 throw new Error('Sync failed with status: ' + r.status);
             }
         } catch (e) {
-            console.warn('[TM CLOUD] Sync error:', e.message);
-            updateSyncBadge('offline');
+            syncFailureCount++;
+            console.warn(`[TM CLOUD] Sync error (${syncFailureCount}/3):`, e.message);
             
-            // Auto retry
+            if (syncFailureCount >= 3) {
+                updateSyncBadge('offline');
+            }
+            
+            // Auto retry with exponential backoff
             if (retryCount < 3) {
-                console.log(`[TM CLOUD] Retrying sync... (${retryCount + 1}/3)`);
-                setTimeout(() => performSync(retryCount + 1), 3000);
+                const delay = Math.pow(2, retryCount) * 2000;
+                setTimeout(() => performSync(retryCount + 1), delay);
             } else {
-                // If it totally fails, flag it so next action retries
                 needAnotherSync = true;
             }
         } finally {
             isSyncing = false;
             if (needAnotherSync) {
-                // Jika ada data baru tapi sync di atas sedang jalan, jalankan lagi sync nya!
                 syncTimer = setTimeout(() => performSync(0), 1000);
             }
         }

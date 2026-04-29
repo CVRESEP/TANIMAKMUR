@@ -1,9 +1,9 @@
-// Kiosk Orders & Approvals Module
+// Modul Pesanan & Persetujuan Kios
 function renderOrdersKiosk() {
     const tbody = document.getElementById('kiosk-orders-body');
     if (!tbody) return;
 
-    // Kiosks should only see their own orders
+    // Kios hanya boleh melihat pesanan mereka sendiri
     const myOrders = STATE.orders.filter(o => o.kiosk === STATE.currentUser.name);
     const data = paginateData(myOrders, 'orders_kiosk');
 
@@ -107,7 +107,7 @@ function openAddOrderModal() {
     openModal('Buat Pesanan Baru', content);
 }
 
-// Global helper for the onchange event
+// Pembantu global untuk event onchange
 window.refreshOrderProducts = function (select) {
     const val = select.value;
     const productSelect = document.getElementById('order-product-select');
@@ -130,7 +130,7 @@ function saveOrder(e) {
     const product = STATE.products.find(p => p.code === productCode);
     const qty = parseFloat(fd.get('qty'));
 
-    // Determine target kiosk and branch
+    // Tentukan target kios dan cabang
     let kioskName = STATE.currentUser.name;
     let kioskBranch = STATE.currentUser.branch;
 
@@ -204,6 +204,7 @@ function saveProof(e, id) {
     if (order) {
         order.proof = 'uploaded_proof.jpg';
         order.status = 'MENUNGGU KONFIRMASI PEMBAYARAN';
+        if (order.rejectReason) delete order.rejectReason;
         saveState();
         closeModal();
         renderOrdersKiosk();
@@ -229,9 +230,16 @@ function renderApprovals() {
             `;
         } else if (o.status === 'MENUNGGU KONFIRMASI PEMBAYARAN' || o.status === 'MENUNGGU PEMBAYARAN') {
             actionBtn = `
-                <button class="action-btn small success" onclick="openPaymentDialog('${o.id}')" style="background: #108040; color: white; border: none;">
-                    <i data-lucide="dollar-sign"></i> ${o.status === 'MENUNGGU PEMBAYARAN' ? 'BAYAR / CICIL' : 'KONFIRMASI BAYAR'}
-                </button>
+                <div style="display: flex; gap: 5px;">
+                    <button class="action-btn small success" onclick="openPaymentDialog('${o.id}')" style="background: #108040; color: white; border: none;">
+                        <i data-lucide="dollar-sign"></i> ${o.status === 'MENUNGGU PEMBAYARAN' ? 'BAYAR / CICIL' : 'KONFIRMASI BAYAR'}
+                    </button>
+                    ${o.status === 'MENUNGGU KONFIRMASI PEMBAYARAN' ? `
+                        <button class="action-btn small" onclick="rejectPaymentConfirmation('${o.id}')" style="background: #ef4444; color: white; border: none;">
+                            <i data-lucide="x-circle"></i> TOLAK BAYAR
+                        </button>
+                    ` : ''}
+                </div>
             `;
         }
 
@@ -269,6 +277,11 @@ function renderApprovals() {
                                 <button onclick="openPaymentDialog('${o.id}')" style="color: var(--primary); font-weight: 600;">
                                     <i data-lucide="dollar-sign" style="width: 14px; margin-right: 4px;"></i> Bayar/Cicil
                                 </button>
+                                ${o.status.trim().toUpperCase() === 'MENUNGGU KONFIRMASI PEMBAYARAN' ? `
+                                    <button onclick="rejectPaymentConfirmation('${o.id}')" style="color: #ef4444;">
+                                        <i data-lucide="x-circle" style="width: 14px; margin-right: 4px;"></i> Tolak Pembayaran
+                                    </button>
+                                ` : ''}
                             `}
                             <button onclick="deleteOrder('${o.id}')" style="color: #ef4444;">
                                 <i data-lucide="trash-2"></i> Hapus Pesanan
@@ -308,12 +321,12 @@ function saveApprovalDirectDispatch(e, orderId) {
         order.assignedDO = entry.do;
         order.pengeluaran_id = outId;
 
-        // Custom ID Format: [NO DO]-[INCREMENT]
+        // Format ID Kustom: [NO DO]-[INCREMENT]
         const count = STATE.penyaluran.filter(p => p.do === entry.do).length;
         const pylId = `${entry.do}-${count + 1}`;
         order.pylId = pylId;
 
-        // Create Penyaluran record with direct "DALAM PENGIRIMAN" status
+        // Buat catatan Penyaluran dengan status langsung "DALAM PENGIRIMAN"
         const newPyl = {
             id: pylId,
             orderId: order.id,
@@ -330,7 +343,7 @@ function saveApprovalDirectDispatch(e, orderId) {
         };
         STATE.penyaluran.unshift(newPyl);
 
-        // Trigger automated Kas Angkutan record creation
+        // Pemicu pembuatan catatan Kas Angkutan otomatis
         if (typeof autoCreateKasAngkutan === 'function') {
             autoCreateKasAngkutan(newPyl.id);
         }
@@ -401,7 +414,7 @@ function openPaymentDialog(id) {
     `;
     openModal('Pembayaran / Cicilan', content);
     
-    // Inject the toggle function if it doesn't exist
+    // Masukkan fungsi toggle jika belum ada
     if (!window.toggleDepositInput) {
         window.toggleDepositInput = function(checkbox, maxDeposit, maxBill) {
             const input = document.getElementById('payment-input');
@@ -544,18 +557,18 @@ function confirmOrder(id, nextStatus) {
 
 function deleteOrder(id) {
     if (confirm('Hapus pesanan ' + id + '? Data pengiriman & biaya angkutan terkait juga akan dihapus.')) {
-        // Collect linked distribution IDs
+        // Kumpulkan ID distribusi tertaut
         const linkedPylIds = STATE.penyaluran.filter(p => p.orderId === id).map(p => p.id);
 
         STATE.orders = STATE.orders.filter(o => o.id !== id);
         STATE.penyaluran = STATE.penyaluran.filter(p => p.orderId !== id);
 
-        // Clear linked Kas Angkutan
+        // Bersihkan Kas Angkutan tertaut
         STATE.kas_angkutan = STATE.kas_angkutan.filter(k => !linkedPylIds.includes(k.noPyl));
 
         saveState(true);
 
-        // Refresh appropriate view based on role
+        // Muat ulang tampilan yang sesuai berdasarkan peran
         if (STATE.currentUser.role === 'KIOS') {
             renderOrdersKiosk();
         } else {
@@ -606,5 +619,23 @@ function saveRejectOrder(e, id) {
         renderApprovals();
         if (typeof renderDashboard === 'function') renderDashboard();
         openSuccessModal('PESANAN DITOLAK', `Pesanan <strong>${id}</strong> telah ditolak dengan alasan: ${reason}`);
+    }
+}
+
+function rejectPaymentConfirmation(id) {
+    const order = STATE.orders.find(o => o.id === id);
+    if (!order) return;
+
+    const reason = prompt('Masukkan alasan penolakan pembayaran:');
+    if (reason === null) return; 
+    if (!reason.trim()) return alert('Alasan penolakan wajib diisi!');
+
+    if (confirm(`Tolak konfirmasi pembayaran untuk pesanan ${id}?`)) {
+        order.status = 'MENUNGGU PEMBAYARAN';
+        order.rejectReason = reason;
+        saveState();
+        renderApprovals();
+        if (typeof renderOrdersKiosk === 'function') renderOrdersKiosk();
+        openSuccessModal('PEMBAYARAN DITOLAK', `Konfirmasi pembayaran untuk pesanan <strong>${id}</strong> telah ditolak.`);
     }
 }

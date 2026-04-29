@@ -1,8 +1,8 @@
-// Finance / Cash Management Module
+// Modul Keuangan / Manajemen Kas
 function renderKasAngkutan() {
     _renderFinance('kas_angkutan', 'Buku Kas Angkutan');
     
-    // Handle Approval Button Visibility
+    // Tangani Visibilitas Tombol Persetujuan
     const btn = document.getElementById('btn-approval-kas');
     if (btn) {
         const isManager = ['OWNER', 'MANAJER'].includes(STATE.currentUser.role.toUpperCase());
@@ -14,7 +14,7 @@ function renderKasAngkutan() {
 function renderKasUmum() {
     _renderFinance('kas_umum', 'Buku Kas Umum');
     
-    // Handle Approval Button Visibility
+    // Tangani Visibilitas Tombol Persetujuan
     const btn = document.getElementById('btn-approval-kas-umum');
     if (btn) {
         const isManager = ['OWNER', 'MANAJER'].includes(STATE.currentUser.role.toUpperCase());
@@ -50,7 +50,7 @@ function _renderFinance(type, title) {
         }
     }
 
-    // Calculate Summary
+    // Hitung Ringkasan
     const totalMasuk = allData.reduce((sum, item) => round2(sum + (parseFloat(item.masuk) || 0)), 0);
     const totalKeluar = allData.reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0);
     const saldo = round2(totalMasuk - totalKeluar);
@@ -96,9 +96,11 @@ function _renderFinance(type, title) {
                 <td>
                     <div style="margin-bottom: 5px;">
                         ${item.status === 'DISETUJUI' ? `<span class="badge lunas">DISETUJUI</span>` : 
+                          item.status === 'DITOLAK' ? `<span class="badge" style="background:#fee2e2; color:#b91c1c;">DITOLAK</span>` :
                           item.status === 'MENUNGGU PERSETUJUAN' ? `<span class="badge propping" style="background:#fef3c7; color:#92400e;">MENUNGGU</span>` :
                           `<span class="badge" style="background:#f1f5f9; color:#64748b; font-size:0.65rem;">DRAFT</span>`}
                     </div>
+                    ${item.rejectReason ? `<div style="font-size: 0.65rem; color: #ef4444; font-weight: 600; margin-top: 4px;">ALASAN: ${item.rejectReason}</div>` : ''}
                     <div style="display: flex; gap: 5px;">
                         <button class="action-btn small t-icon" title="Lihat Detail" onclick="viewFinanceDetail('${item.id}')">
                             <i data-lucide="eye"></i>
@@ -114,7 +116,8 @@ function _renderFinance(type, title) {
                     </div>
                 </td>
             </tr>
-        `).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Belum ada transaksi terdata</td></tr>`;
+        `).join('')
+ || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Belum ada transaksi terdata</td></tr>`;
     } else {
         tbody.innerHTML = data.map(item => `
             <tr>
@@ -129,9 +132,11 @@ function _renderFinance(type, title) {
                 <td>
                     <div style="margin-bottom: 5px;">
                         ${item.status === 'DISETUJUI' ? `<span class="badge lunas">DISETUJUI</span>` : 
+                          item.status === 'DITOLAK' ? `<span class="badge" style="background:#fee2e2; color:#b91c1c;">DITOLAK</span>` :
                           item.status === 'MENUNGGU PERSETUJUAN' ? `<span class="badge propping" style="background:#fef3c7; color:#92400e;">MENUNGGU</span>` :
                           `<span class="badge" style="background:#f1f5f9; color:#64748b; font-size:0.65rem;">DRAFT</span>`}
                     </div>
+                    ${item.rejectReason ? `<div style="font-size: 0.65rem; color: #ef4444; font-weight: 600; margin-top: 4px;">ALASAN: ${item.rejectReason}</div>` : ''}
                     <div style="display: flex; gap: 5px;">
                         ${item.status === 'DISETUJUI' && ['OWNER', 'MANAJER'].includes(STATE.currentUser.role.toUpperCase()) ? `
                         <button class="action-btn small t-icon" title="Batalkan Persetujuan" onclick="revertFinanceApproval('${item.id}', '${type}')" style="color: #f59e0b;">
@@ -144,7 +149,8 @@ function _renderFinance(type, title) {
                     </div>
                 </td>
             </tr>
-        `).join('') || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Belum ada transaksi terdata</td></tr>`;
+        `).join('')
+ || `<tr><td colspan="100%" style="text-align:center; padding: 30px; color: var(--text-dim);">Belum ada transaksi terdata</td></tr>`;
     }
 
     const wrapper = tbody.closest('.table-container');
@@ -220,6 +226,31 @@ function approveFinanceTransactions(type, overrideIds = null) {
     }
 }
 
+function rejectFinanceTransactions(type) {
+    const checked = Array.from(document.querySelectorAll('.approval-checkbox:checked')).map(cb => cb.value);
+    if (checked.length === 0) return alert('Pilih data yang akan ditolak!');
+
+    const reason = prompt('Masukkan alasan penolakan:');
+    if (reason === null) return; // Batal prompt
+    if (!reason.trim()) return alert('Alasan penolakan wajib diisi!');
+
+    const label = type === 'kas_angkutan' ? 'Kas Angkutan' : 'Kas Umum';
+
+    if (confirm(`Tolak ${checked.length} transaksi ${label} terpilih?`)) {
+        STATE[type].forEach(item => {
+            if (checked.includes(String(item.id))) {
+                item.status = 'DITOLAK';
+                item.rejectReason = reason;
+            }
+        });
+        saveState();
+        STATE.uiSelectionMode[type] = false;
+        if (type === 'kas_angkutan') renderKasAngkutan(); else renderKasUmum();
+        closeModal();
+        openSuccessModal('PENOLAKAN SELESAI', `${checked.length} transaksi ${label} telah ditolak dengan alasan: ${reason}`);
+    }
+}
+
 function openFinanceApprovalModal(type = 'kas_angkutan') {
     const pending = STATE[type].filter(i => i.status === 'MENUNGGU PERSETUJUAN');
     const label = type === 'kas_angkutan' ? 'Kas Angkutan' : 'Kas Umum';
@@ -276,6 +307,9 @@ function openFinanceApprovalModal(type = 'kas_angkutan') {
                 <button class="action-btn primary" onclick="processBulkApprovalFromModal('${type}')" style="flex: 1; justify-content: center; background: #10b981; border-color: #059669; height: 52px; font-weight: 700; font-size: 1rem;">
                     <i data-lucide="check-circle"></i> APPROVE & CAIRKAN DANA
                 </button>
+                <button class="action-btn" onclick="rejectFinanceTransactions('${type}')" style="flex: 1; justify-content: center; background: #ef4444; color: white; border: none; height: 52px; font-weight: 700; font-size: 1rem;">
+                    <i data-lucide="x-circle"></i> TOLAK PERMOHONAN
+                </button>
                 <button class="action-btn secondary" onclick="closeModal()" style="height: 52px; padding: 0 25px;">BATAL</button>
             </div>
         </div>
@@ -316,7 +350,7 @@ function processBulkApprovalFromModal(type) {
     
     if (confirm(`Anda akan mencairkan dana senilai ${formatCurrency(finalTotalAcc)} untuk ${checked.length} data terpilih?`)) {
         
-        // 1. Mark existing items as approved
+        // 1. Tandai item yang ada sebagai disetujui
         let targetBranch = 'MAGETAN';
         STATE[type].forEach(item => {
             if (checked.includes(String(item.id))) {
@@ -325,7 +359,7 @@ function processBulkApprovalFromModal(type) {
             }
         });
 
-        // 2. Create a NEW "MASUK" entry
+        // 2. Buat entri "MASUK" BARU
         const newEntry = {
             id: 'TX-IN-' + Date.now(),
             date: new Date().toISOString().split('T')[0],
@@ -516,7 +550,7 @@ function openAddKasAngkutanModal() {
     `;
     openModal('Tambah Kas Angkutan (Detail)', content, '1000px');
     
-    // Add format and parse listeners to all calc fields
+    // Tambahkan listener format dan parse ke semua kolom kalkulasi
     const calcFields = document.querySelectorAll('.fin-calc');
     calcFields.forEach(f => {
         f.addEventListener('input', (e) => {
@@ -529,13 +563,13 @@ function openAddKasAngkutanModal() {
     });
 }
 
-// Logic Helpers for the complex form
+// Pembantu Logika untuk formulir yang kompleks
 function handleFinanceKabChange() {
     const kab = document.getElementById('fin-kabupaten').value;
     const doRef = document.getElementById('fin-no-do');
     const pylRef = document.getElementById('fin-no-pyl');
     
-    // Filter DOs based on Kab in penyaluran
+    // Filter DO berdasarkan Kab di penyaluran
     const filteredDOs = [...new Set(STATE.penyaluran.filter(p => p.branch === kab || p.kabupaten === kab).map(p => p.do))];
     
     doRef.innerHTML = `<option value="NONE">TANPA DO (UMUM)</option>` + 
@@ -551,7 +585,7 @@ function handleFinanceDoChange() {
     if (doNum === 'NONE') {
         pylRef.innerHTML = `<option value="">Tidak Ada Penyaluran</option>`;
         pylRef.disabled = true;
-        // Unlock fields
+        // Buka kunci bidang
         document.getElementById('fin-admin').readOnly = false;
         document.getElementById('fin-solar').readOnly = false;
         document.getElementById('fin-upahSopir').readOnly = false;
@@ -569,7 +603,7 @@ function autoCreateKasAngkutan(pylId) {
     const pyl = STATE.penyaluran.find(p => p.id === pylId);
     if (!pyl) return;
 
-    // Smart Branch Detection
+    // Deteksi Cabang Cerdas
     let kab = (pyl.kabupaten || pyl.branch || '').toUpperCase().trim();
     if (!kab || kab === 'ALL') {
         const kioskUser = STATE.users.find(u => u.name === pyl.kios && u.role === 'KIOS');
@@ -614,11 +648,11 @@ function autoCreateKasAngkutan(pylId) {
         lainLain: 0
     };
 
-    // Prevent duplicate automated entries for the same distribution
+    // Cegah entri otomatis duplikat untuk distribusi yang sama
     const exists = STATE.kas_angkutan.some(k => k.noPyl === pylId && k.desc.includes('(AUTO)'));
     if (!exists) {
         STATE.kas_angkutan.unshift(newEntry);
-        saveState(true); // Sync IMMEDIATELY to prevent loss during redirect
+        saveState(true); // Sinkronkan SEGERA untuk mencegah kehilangan saat pengalihan
     }
 }
 
@@ -650,7 +684,7 @@ function handleFinancePylChange() {
     document.getElementById('fin-solar').value = formatNumberInput(solar.toString());
     document.getElementById('fin-upahSopir').value = formatNumberInput(upahSopir.toString());
     
-    // Lock auto-calculated fields
+    // Kunci bidang yang dihitung otomatis
     document.getElementById('fin-admin').readOnly = true;
     document.getElementById('fin-solar').readOnly = true;
     document.getElementById('fin-upahSopir').readOnly = true;
@@ -685,7 +719,7 @@ function saveFinanceTransaction(e, type) {
     const direction = fd.get('direction');
     const amount = parseNumberInput(fd.get('amount'));
     
-    // Default branch selection logic
+    // Logika pemilihan cabang default
     let branchVal = STATE.currentUser.branch;
     if (branchVal === 'ALL') {
         branchVal = STATE.activeBranchFilter === 'ALL' ? 'MAGETAN' : STATE.activeBranchFilter;

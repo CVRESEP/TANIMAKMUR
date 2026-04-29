@@ -18,7 +18,7 @@ function renderDailyReport() {
     if (branchInput) {
         branchInput.value = selectedBranch;
         if (isRestricted && currentUser.branch !== 'ALL') {
-            branchInput.style.display = 'none'; // Hide dropdown for restricted branch users
+            branchInput.style.display = 'none'; // Sembunyikan dropdown untuk pengguna cabang terbatas
         }
     }
 
@@ -38,21 +38,20 @@ function renderDailyReport() {
         const prodName = p.name;
         const branch = p.branch;
 
-        const targetBranch = selectedBranch === 'ALL' ? (p.branch || '') : selectedBranch;
 
-        // 1. SISA LALU (History before selectedDate)
-        const prevPurchased = round2((STATE.penebusan || [])
+        // 1. SISA LALU (Riwayat sebelum tanggal terpilih)
+        const prevPurchased = round2((STATE.pengeluaran || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
-                (selectedBranch === 'ALL' || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
+                (item.branch || item.kabupaten || '').toUpperCase() === (p.branch || '').toUpperCase() && 
                 item.date < selectedDate
             )
-            .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
+            .reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0));
         
         const prevDispatched = round2((STATE.penyaluran || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
-                (selectedBranch === 'ALL' || (item.branch || '').toUpperCase() === targetBranch.toUpperCase() || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
+                (item.branch || item.kabupaten || '').toUpperCase() === (p.branch || '').toUpperCase() && 
                 item.date < selectedDate && 
                 item.status !== 'MENUNGGU PENGIRIMAN'
             )
@@ -60,23 +59,23 @@ function renderDailyReport() {
         
         const sisaLalu = round2(prevPurchased - prevDispatched);
 
-        // 2. DAILY TRANSACTIONS
+        // 2. TRANSAKSI HARIAN
         const dispatched = round2((STATE.penyaluran || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
-                (selectedBranch === 'ALL' || (item.branch || '').toUpperCase() === targetBranch.toUpperCase() || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
+                (item.branch || item.kabupaten || '').toUpperCase() === (p.branch || '').toUpperCase() && 
                 item.date === selectedDate && 
                 item.status !== 'MENUNGGU PENGIRIMAN'
             )
             .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
         
-        const purchased = round2((STATE.penebusan || [])
+        const purchased = round2((STATE.pengeluaran || [])
             .filter(item => 
                 (item.product || '').toUpperCase() === (prodName || '').toUpperCase() && 
-                (selectedBranch === 'ALL' || (item.kabupaten || '').toUpperCase() === targetBranch.toUpperCase()) && 
+                (item.branch || item.kabupaten || '').toUpperCase() === (p.branch || '').toUpperCase() && 
                 item.date === selectedDate
             )
-            .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
+            .reduce((sum, item) => round2(sum + (parseFloat(item.keluar) || 0)), 0));
 
         const stokAkhir = round2(sisaLalu + purchased - dispatched);
         
@@ -86,7 +85,7 @@ function renderDailyReport() {
         const jualKios = round2(dispatched * hargaJual);
         const penebusanValue = round2(purchased * hargaTebus);
 
-        // Update Totals
+        // Perbarui Total
         totalSisaLalu = round2(totalSisaLalu + sisaLalu);
         totalPenyaluran = round2(totalPenyaluran + dispatched);
         totalPenebusanTunai = round2(totalPenebusanTunai + purchased);
@@ -112,7 +111,7 @@ function renderDailyReport() {
         `;
     });
 
-    // Add Total Row
+    // Tambahkan Baris Total
     rows.push(`
         <tr style="background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1;">
             <td style="padding: 12px 15px;">TOTAL</td>
@@ -130,7 +129,7 @@ function renderDailyReport() {
 
     tbody.innerHTML = rows.join('');
 
-    // --- SUMMARY FOOTER CALCULATIONS ---
+    // --- PERHITUNGAN RINGKASAN KAKI ---
     const isBranchMatch = (itemBranch) => selectedBranch === 'ALL' || (itemBranch || '').toUpperCase() === selectedBranch.toUpperCase();
 
     const prevSales = STATE.orders
@@ -191,6 +190,7 @@ function renderDailyReport() {
     `;
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (typeof initDatePickers === 'function') initDatePickers();
 }
 
 function exportDailyReport(type) {
@@ -207,7 +207,7 @@ function exportDailyReport(type) {
     }
 }
 
-// RESTORED ORIGINAL REPORT FUNCTIONS
+// FUNGSI LAPORAN ASLI YANG DIPULIHKAN
 function renderReports() {
     const container = document.getElementById('content-area');
     if (!container) return;
@@ -242,6 +242,79 @@ function renderReports() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+function previewReport(type) {
+    const start = STATE.reportRange?.start;
+    const end = STATE.reportRange?.end;
+
+    if (!start || !end) {
+        showToast('Pilih rentang tanggal terlebih dahulu', 'error');
+        return;
+    }
+
+    let dataToPreview = [];
+    const isWithinRange = (dateStr) => dateStr && dateStr >= start && dateStr <= end;
+
+    if (type === 'stocks') {
+        dataToPreview = (STATE.products || []).map(p => ({
+            'PRODUK': p.name,
+            'CABANG': p.branch,
+            'STOK': calculateStock(p.name).toFixed(1) + ' TON',
+            'ESTIMASI NILAI': formatCurrency(calculateStock(p.name) * (p.buyPrice || p.price || 0))
+        }));
+    } else {
+        dataToPreview = (STATE[type] || []).filter(item => isWithinRange(item.date));
+    }
+
+    if (dataToPreview.length === 0) {
+        openErrorModal('PREVIEW KOSONG', `Tidak ada data ditemukan pada rentang ini.`);
+        return;
+    }
+
+    // Buat HTML Tabel
+    const headers = Object.keys(dataToPreview[0]);
+    let tableHtml = `
+        <div class="table-container" style="max-height: 60vh; overflow-y: auto;">
+            <table class="preview-table">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        ${headers.map(h => `<th style="text-align: left; padding: 12px;">${h}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${dataToPreview.map(row => `
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            ${headers.map(h => {
+                                let val = row[h];
+                                // Format dates if the header is TANGGAL or date
+                                if (h.toUpperCase().includes('TANGGAL') || h.toLowerCase() === 'date') {
+                                    val = formatDate(val);
+                                } else if (typeof val === 'number') {
+                                    val = val.toLocaleString('id-ID');
+                                }
+                                return `<td style="padding: 12px; font-size: 0.85rem;">${val}</td>`;
+                            }).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="action-btn secondary" onclick="closeModal()">TUTUP</button>
+            <button class="action-btn primary" onclick="exportReports('${type}')">UNDUH EXCEL</button>
+        </div>
+    `;
+
+    const titles = {
+        penebusan: 'Preview Laporan Penebusan',
+        penyaluran: 'Preview Laporan Penyaluran',
+        kas_umum: 'Preview Buku Kas Umum',
+        kas_angkutan: 'Preview Kas Angkutan',
+        stocks: 'Preview Laporan Stok'
+    };
+
+    openModal(titles[type] || 'Preview Laporan', tableHtml, '900px');
+}
+
 function exportReports(type) {
     const start = STATE.reportRange?.start;
     const end = STATE.reportRange?.end;
@@ -271,7 +344,20 @@ function exportReports(type) {
         return;
     }
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    // Format tanggal dan angka untuk Excel
+    const formattedData = dataToExport.map(row => {
+        const newRow = {};
+        Object.keys(row).forEach(key => {
+            let val = row[key];
+            if (key.toLowerCase().includes('date') || key.toUpperCase().includes('TANGGAL')) {
+                val = formatDate(val);
+            }
+            newRow[key] = val;
+        });
+        return newRow;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan");
     XLSX.writeFile(workbook, `laporan_${type}_${start}_sd_${end}.xlsx`);

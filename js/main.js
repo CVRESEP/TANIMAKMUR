@@ -1,33 +1,33 @@
-// Initialize Tani Makmur Dashboard
+// Inisialisasi Dasbor Tani Makmur
 document.addEventListener('DOMContentLoaded', async () => {
     checkAuth();
     setupRouting();
     startSessionTimer();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // Wait for state to be fully loaded (including SQLite if available)
+    // Tunggu status dimuat sepenuhnya (termasuk SQLite jika tersedia)
     try {
         await window._stateReady;
     } catch (e) {
         console.warn('[TM] State init error, using localStorage:', e);
     }
 
-    // Initial page load
+    // Pemuatan halaman awal
     let initialPage = window.location.hash.replace('#', '') || 'dashboard';
     
-    // Redirect KIOS from dashboard to their orders
+    // Alihkan KIOS dari dasbor ke pesanan mereka
     if (initialPage === 'dashboard' && STATE.currentUser.role === 'KIOS') {
         initialPage = 'orders_kiosk';
     }
 
-    // Reset selection modes on load
+    // Reset mode pemilihan saat pemuatan
     STATE.uiSelectionMode = {};
     
     updateHeaderUserInfo();
     applyRolePermissions();
     navigateTo(initialPage);
 
-    // Global click listener to close dropdowns
+    // Pendengar klik global untuk menutup dropdown
     window.addEventListener('click', (e) => {
         if (!e.target.closest('.action-dropdown')) {
             document.querySelectorAll('.dropdown-content.show').forEach(d => d.classList.remove('show'));
