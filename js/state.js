@@ -203,6 +203,12 @@ async function saveRecord(table, data) {
     } catch (e) {
         console.error(`[TM CLOUD] ❌ Gagal simpan record ke ${table}:`, e.message);
         updateSyncBadge('offline');
+        
+        // Tampilkan pesan error ke user jika fungsi modal tersedia
+        if (typeof openErrorModal === 'function') {
+            openErrorModal('GAGAL MENYIMPAN', `Data tidak dapat disimpan ke cloud: ${e.message}. Sistem akan mencoba sinkronisasi ulang di latar belakang.`);
+        }
+
         // Fallback: coba via full sync
         syncToServer(true);
     }
@@ -244,6 +250,10 @@ async function deleteRecord(table, id, idField = 'id') {
     } catch (e) {
         console.error(`[TM CLOUD] ❌ Gagal hapus record dari ${table}:`, e.message);
         updateSyncBadge('offline');
+        
+        if (typeof openErrorModal === 'function') {
+            openErrorModal('GAGAL MENGHAPUS', `Data tidak dapat dihapus dari cloud: ${e.message}`);
+        }
     }
 }
 

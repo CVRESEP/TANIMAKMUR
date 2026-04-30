@@ -293,8 +293,7 @@ function saveDriver(e) {
         branch: fd.get('branch')
     };
 
-    STATE.drivers.push(newDriver);
-    saveState(true);
+    saveRecord('drivers', newDriver);
     closeModal();
     renderDrivers();
     openSuccessModal('SOPIR TERDAFTAR', `Sopir <strong>${newDriver.name}</strong> berhasil ditambahkan untuk cabang <strong>${newDriver.branch}</strong>.`);
@@ -343,7 +342,7 @@ function updateDriver(e, id) {
             });
         }
 
-        saveState(true);
+        saveRecord('drivers', drv);
         closeModal();
         renderDrivers();
         openSuccessModal('PERUBAHAN DISIMPAN', `Data sopir berhasil diperbarui.`);
@@ -360,8 +359,7 @@ function deleteDriver(id) {
     }
 
     if (confirm('Hapus master data sopir ini?')) {
-        STATE.drivers = STATE.drivers.filter(d => d.id !== id);
-        saveState(true);
+        deleteRecord('drivers', id);
         renderDrivers();
         openSuccessModal('SOPIR DIHAPUS', `Data sopir berhasil dihapus dari sistem.`);
     }
