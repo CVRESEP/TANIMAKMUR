@@ -104,7 +104,6 @@ app.post('/api/sync', async (req, res) => {
       drivers: 'drivers'
     };
 
-    // Jalankan sync dalam urutan tertentu
     for (const [stateKey, table] of Object.entries(tableMap)) {
       const rows = state[stateKey];
       if (!Array.isArray(rows) || rows.length === 0) continue;
@@ -115,25 +114,27 @@ app.post('/api/sync', async (req, res) => {
       for (const row of rows) {
         if (!row || typeof row !== 'object') continue;
         const cols = Object.keys(row);
+        if (cols.length === 0) continue;
         const placeholders = cols.map(() => '?').join(', ');
+        // INSERT OR REPLACE: aman, tidak menghapus data yang tidak ada di payload
         const sql = `INSERT OR REPLACE INTO "${table}" (${cols.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
         const values = cols.map(c => {
-           let v = row[c];
-           return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v;
+          let v = row[c];
+          return (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v;
         });
         allStmts.push({ sql, args: values });
       }
-      
-      // Chunking batch (50 statements per batch) untuk menghindari timeout/limit Turso
+
+      // Chunking batch (50 statements per batch)
       const chunkSize = 50;
       for (let i = 0; i < allStmts.length; i += chunkSize) {
         const chunk = allStmts.slice(i, i + chunkSize);
         try {
           await turso.batch(chunk, 'write');
-          console.log(`[SYNC]   -> Chunk ${Math.floor(i/chunkSize) + 1} for ${table} success.`);
+          console.log(`[SYNC]   -> Chunk ${Math.floor(i/chunkSize) + 1} for ${table} OK.`);
         } catch (batchErr) {
           console.error(`[SYNC]   -> Error in chunk ${i} for ${table}:`, batchErr.message);
-          throw batchErr; // Re-throw to catch block
+          throw batchErr;
         }
       }
     }
@@ -155,9 +156,11 @@ app.post('/api/sync', async (req, res) => {
   } catch (e) {
     isConnectedToTurso = false;
     lastError = e.message;
+    console.error('[SYNC] Fatal error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
+
 
 // Endpoint untuk insert data tunggal secara langsung (LEBIH CEPAT)
 app.post('/api/insert-record', async (req, res) => {

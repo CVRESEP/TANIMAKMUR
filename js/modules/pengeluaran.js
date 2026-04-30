@@ -323,7 +323,7 @@ function updatePengeluaran(e, id) {
     if (entry) {
         entry.keluar = qty;
         entry.date = date;
-        saveState();
+        saveRecord('pengeluaran', entry); // ✅ Langsung sync ke server
         closeModal();
         renderPengeluaran();
         openSuccessModal('BERHASIL', 'Data pengeluaran berhasil diperbarui.');
@@ -436,7 +436,9 @@ function saveDirectPenyaluran(e, outId) {
         autoCreateKasAngkutan(pylId);
     }
 
-    saveState();
+    // ✅ Langsung sync semua data baru ke server
+    saveRecord('orders', newOrder);
+    saveRecord('penyaluran', newPyl);
     closeModal();
     renderPengeluaran();
     if (typeof renderDashboard === 'function') renderDashboard();

@@ -4,15 +4,13 @@ const turso = createClient({
   authToken:'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzY3MDg2NDUsImlkIjoiMDE5ZGFjMTQtZjAwMS03NTZiLWIxNmEtZjliYzE1YWExODE0IiwicmlkIjoiZTBkMWFhODUtOTg0OC00MjVkLWI5N2EtMWU0ODA1ZmJlYTNkIn0.HuGaB5DogClfIH9r3KzzcBSU5jrpWIIuTW1-A2hciSJmJZOHzitYnMlHemsMhrcRaw6pCmigb-avnyIwHUs9Ag'
 });
 
-async function check() {
+async function getSchema() {
   const tables = ['users','products','penebusan','pengeluaran','penyaluran','orders','drivers','kas_angkutan','kas_umum'];
   for(const t of tables) {
     try {
-        const res = await turso.execute(`SELECT COUNT(*) as c FROM "${t}"`);
-        console.log(t, res.rows[0].c);
-    } catch(e) {
-        console.log(t, 'ERROR', e.message);
-    }
+        const res = await turso.execute(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${t}'`);
+        console.log(res.rows[0].sql);
+    } catch(e) {}
   }
 }
-check();
+getSchema();

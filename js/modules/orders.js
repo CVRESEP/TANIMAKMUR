@@ -204,7 +204,7 @@ function saveProof(e, id) {
         order.proof = 'uploaded_proof.jpg';
         order.status = 'MENUNGGU KONFIRMASI PEMBAYARAN';
         if (order.rejectReason) delete order.rejectReason;
-        saveState();
+        saveRecord('orders', order);
         closeModal();
         renderOrdersKiosk();
         if (typeof renderDashboard === 'function') renderDashboard();
@@ -347,7 +347,8 @@ function saveApprovalDirectDispatch(e, orderId) {
             autoCreateKasAngkutan(newPyl.id);
         }
 
-        saveState();
+        saveRecord('orders', order);
+        saveRecord('penyaluran', newPyl);
         closeModal();
         renderApprovals();
         if (typeof renderPenyaluran === 'function') renderPenyaluran();
@@ -480,7 +481,7 @@ function processPayment(e, id) {
         order.status = 'MENUNGGU PEMBAYARAN'; // Kembali ke status ini jika baru cicil
     }
 
-    saveState();
+    saveRecord('orders', order);
     closeModal();
     renderApprovals();
     if (typeof renderPayments === 'function') renderPayments();
@@ -565,7 +566,11 @@ function deleteOrder(id) {
         // Bersihkan Kas Angkutan tertaut
         STATE.kas_angkutan = STATE.kas_angkutan.filter(k => !linkedPylIds.includes(k.noPyl));
 
-        saveState(true);
+        // Karena menghapus banyak record, kita gunakan deleteRecord
+        deleteRecord('orders', id);
+        linkedPylIds.forEach(pylId => deleteRecord('penyaluran', pylId));
+
+        saveState(true); // Fallback to full sync if needed
 
         // Muat ulang tampilan yang sesuai berdasarkan peran
         if (STATE.currentUser.role === 'KIOS') {
@@ -613,7 +618,7 @@ function saveRejectOrder(e, id) {
     if (order) {
         order.status = 'DITOLAK';
         order.rejectReason = reason;
-        saveState();
+        saveRecord('orders', order);
         closeModal();
         renderApprovals();
         if (typeof renderDashboard === 'function') renderDashboard();
@@ -632,7 +637,7 @@ function rejectPaymentConfirmation(id) {
     if (confirm(`Tolak konfirmasi pembayaran untuk pesanan ${id}?`)) {
         order.status = 'MENUNGGU PEMBAYARAN';
         order.rejectReason = reason;
-        saveState();
+        saveRecord('orders', order);
         renderApprovals();
         if (typeof renderOrdersKiosk === 'function') renderOrdersKiosk();
         openSuccessModal('PEMBAYARAN DITOLAK', `Konfirmasi pembayaran untuk pesanan <strong>${id}</strong> telah ditolak.`);

@@ -186,7 +186,7 @@ function confirmDispatch(e, pylId) {
         pyl.driver = driverData[0];
         pyl.plat = driverData[1];
         pyl.status = 'DALAM PENGIRIMAN';
-        saveState();
+        saveRecord('penyaluran', pyl);
         closeModal();
         renderPenyaluran();
         openSuccessModal('PENGIRIMAN DIMULAI', `Barang sedang dikirim oleh <strong>${pyl.driver}</strong> (${pyl.plat}).`);
@@ -299,7 +299,9 @@ function updatePenyaluran(e, pylId) {
         order.total = order.qty * (order.pricePerTon || 0);
     }
 
-    saveState();
+    saveRecord('penyaluran', STATE.penyaluran[idx]);
+    if (order) saveRecord('orders', order);
+    
     closeModal();
     renderPenyaluran();
     openSuccessModal('BERHASIL', 'Data penyaluran telah diperbarui.');
