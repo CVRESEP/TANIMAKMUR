@@ -158,6 +158,57 @@ export async function onRequest(context) {
         }
     }
 
+    // ── INSERT RECORD ──────────────────────────────────────────────────────────
+    if (path.endsWith('/api/insert-record') && method === 'POST') {
+        try {
+            const { table, data } = await request.json();
+            const cols = Object.keys(data);
+            const placeholders = cols.map(() => '?').join(', ');
+            const args = cols.map(c => {
+                let val = data[c];
+                if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+                
+                if (val === null) return { type: "null" };
+                if (typeof val === "number") {
+                    return Number.isInteger(val) 
+                        ? { type: "integer", value: val.toString() }
+                        : { type: "float", value: val };
+                }
+                return { type: "text", value: String(val) };
+            });
+
+            await queryTurso([{ 
+                q: `INSERT OR REPLACE INTO "${table}" (${cols.map(c => `"${c}"`).join(', ')}) VALUES (${placeholders})`,
+                args 
+            }]);
+            
+            return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
+        } catch (e) {
+            return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+        }
+    }
+
+    // ── DELETE RECORD ──────────────────────────────────────────────────────────
+    if (path.endsWith('/api/delete-record') && method === 'POST') {
+        try {
+            const { table, id, idField = 'id' } = await request.json();
+            
+            let finalIdField = idField;
+            if (table === 'penebusan') finalIdField = 'do';
+            if (table === 'users' || table === 'kiosks') finalIdField = 'username';
+            if (table === 'products') finalIdField = 'code';
+
+            await queryTurso([{ 
+                q: `DELETE FROM "${table}" WHERE "${finalIdField}" = ?`,
+                args: [{ type: "text", value: String(id) }] 
+            }]);
+            
+            return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
+        } catch (e) {
+            return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+        }
+    }
+
     // ── NOTIFICATIONS ────────────────────────────────────────────────────────
     if (path.endsWith('/api/send-wa') && method === 'POST') {
         try {
@@ -197,6 +248,23 @@ export async function onRequest(context) {
             });
             const result = await response.json();
             return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
+        } catch (e) {
+            return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+        }
+    }
+
+    // ── SUPPLIERS ────────────────────────────────────────────────────────────
+    if (path.endsWith('/api/suppliers') && method === 'POST') {
+        try {
+            const { name } = await request.json();
+            if (!name) return new Response(JSON.stringify({ error: 'Name missing' }), { status: 400 });
+            
+            await queryTurso([{ 
+                q: 'INSERT OR REPLACE INTO suppliers (name) VALUES (?)',
+                args: [{ type: "text", value: String(name) }] 
+            }]);
+            
+            return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
         } catch (e) {
             return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
         }
