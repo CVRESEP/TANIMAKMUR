@@ -398,6 +398,9 @@ function saveDirectPenyaluran(e, outId) {
 
     // 1. Create a Background Order (Bypassing Approval)
     const orderId = 'ORD-DIRECT-' + Date.now();
+    const count = STATE.penyaluran.filter(p => p.do === entry.do).length;
+    const pylId = `${entry.do}-${count + 1}`;
+    
     const newOrder = {
         id: orderId,
         date: new Date().toISOString().split('T')[0],
@@ -407,12 +410,11 @@ function saveDirectPenyaluran(e, outId) {
         total: qty * price,
         branch: branch,
         kiosk: kioskName,
-        status: 'MENUNGGU PEMBAYARAN' // Change from LUNAS to MENUNGGU PEMBAYARAN
+        status: 'MENUNGGU PEMBAYARAN', // Change from LUNAS to MENUNGGU PEMBAYARAN
+        pylId: pylId
     };
 
     // 2. Create Penyaluran Record
-    const count = STATE.penyaluran.filter(p => p.do === entry.do).length;
-    const pylId = `${entry.do}-${count + 1}`;
     const newPyl = {
         id: pylId,
         orderId: orderId,

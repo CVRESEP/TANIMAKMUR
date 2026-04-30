@@ -17,9 +17,12 @@ function renderOrdersKiosk() {
 
         return `
             <tr>
-                <td><code>${o.id}</code></td>
+                <td>${o.id}</td>
                 <td>${formatDate(o.date)}</td>
-                <td>${o.pylId ? `<span class="badge" style="background:var(--primary-light); color:var(--primary); font-family:monospace;">${o.pylId}</span>` : '<span style="color:var(--text-dim); font-size:0.8rem;">MENUNGGU</span>'}</td>
+                <td>${(() => {
+                    const pylId = o.pylId || (STATE.penyaluran.find(p => p.orderId === o.id)?.id);
+                    return pylId ? `<span class="badge" style="background:var(--primary-light); color:var(--primary); font-family:monospace; font-size:0.75rem; font-weight:700;">${pylId}</span>` : '<span style="color:var(--text-dim); font-size:0.8rem;">MENUNGGU</span>';
+                })()}</td>
                 <td><strong>${o.product}</strong></td>
                 <td>${formatCurrency(o.price)}</td>
                 <td>${o.qty} Ton</td>
@@ -252,7 +255,10 @@ function renderApprovals() {
             <tr>
                 <td><strong>${o.id}</strong></td>
                 <td>${formatDate(o.date)}</td>
-                <td>${o.assignedDO || '<span style="color:var(--text-dim);">-</span>'}</td>
+                <td>${(() => {
+                    const pylId = o.pylId || (STATE.penyaluran.find(p => p.orderId === o.id)?.id);
+                    return pylId ? `<span class="badge" style="background:var(--primary-light); color:var(--primary); font-family:monospace; font-size:0.75rem; font-weight:700;">${pylId}</span>` : '<span style="color:var(--text-dim);">-</span>';
+                })()}</td>
                 <td>${o.kiosk}</td>
                 <td>${o.product}</td>
                 <td>${o.qty} Ton</td>

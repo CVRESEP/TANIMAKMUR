@@ -17,11 +17,13 @@ function renderPayments() {
             ? '<span class="badge lunas">LUNAS</span>' 
             : '<span class="badge waiting">BELUM LUNAS</span>';
             
+        const pylId = o.pylId || (STATE.penyaluran.find(p => p.orderId === o.id)?.id);
+            
         return `
         <tr>
             <td><strong>${o.id}</strong></td>
             <td>${formatDate(o.date)}</td>
-            <td>${o.pylId || '<span style="color:var(--text-dim);">-</span>'}</td>
+            <td>${pylId ? `<span class="badge" style="background:var(--primary-light); color:var(--primary); font-family:monospace; font-size:0.75rem; font-weight:700;">${pylId}</span>` : '<span style="color:var(--text-dim);">-</span>'}</td>
             <td>${o.kiosk}</td>
             <td>${o.product}</td>
             <td>${o.qty} Ton</td>

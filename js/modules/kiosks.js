@@ -330,7 +330,10 @@ function viewKioskOrders(kioskName) {
                     ${kioskOrders.map(o => `
                         <tr>
                             <td>${formatDate(o.date)}</td>
-                            <td>${o.pylId ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-family:monospace;">${o.pylId}</span>` : '<span style="color:var(--text-dim); font-size:0.75rem;">MENUNGGU</span>'}</td>
+                            <td>${(() => {
+                                const pylId = o.pylId || (STATE.penyaluran.find(p => p.orderId === o.id)?.id);
+                                return pylId ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-family:monospace;">${pylId}</span>` : '<span style="color:var(--text-dim); font-size:0.75rem;">MENUNGGU</span>';
+                            })()}</td>
                             <td>${o.product}</td>
                             <td>${o.qty} Ton</td>
                             <td class="text-right"><strong>${formatCurrency(o.total)}</strong></td>
