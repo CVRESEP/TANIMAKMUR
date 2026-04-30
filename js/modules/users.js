@@ -149,8 +149,7 @@ function saveUser(e) {
         return openErrorModal('USERNAME TERPAKAI', 'Username yang Anda masukkan sudah digunakan oleh akun lain. Silakan gunakan username yang berbeda.');
     }
 
-    STATE.users.push(newUser);
-    saveState();
+    saveRecord('users', newUser);
     closeModal();
     renderUsers();
     openSuccessModal('AKUN DIBUAT', `Akun <strong>${newUser.name}</strong> berhasil dibuat.`);
@@ -213,7 +212,7 @@ function updateUser(e, username) {
     const userIndex = STATE.users.findIndex(u => u.username === username);
     
     if (userIndex !== -1) {
-        STATE.users[userIndex] = {
+        const updatedUser = {
             ...STATE.users[userIndex],
             name: fd.get('name'),
             role: fd.get('role'),
@@ -223,7 +222,7 @@ function updateUser(e, username) {
             branch: fd.get('branch')
         };
         
-        saveState();
+        saveRecord('users', updatedUser);
         closeModal();
         renderUsers();
         openSuccessModal('PERUBAHAN DISIMPAN', `Data akun <strong>${username}</strong> telah diperbarui.`);
@@ -233,8 +232,7 @@ function updateUser(e, username) {
 function deleteUser(username) {
     if (username === 'admin') return alert('Admin utama tidak bisa dihapus!');
     if (confirm('Hapus akun ' + username + '?')) {
-        STATE.users = STATE.users.filter(u => u.username !== username);
-        saveState();
+        deleteRecord('users', username, 'username');
         renderUsers();
         openSuccessModal('AKUN DIHAPUS', `Akun <strong>${username}</strong> berhasil dihapus dari sistem.`);
     }

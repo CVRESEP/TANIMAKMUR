@@ -136,24 +136,20 @@ function renderDailyReport() {
         .filter(o => isBranchMatch(o.branch) && o.date < selectedDate && o.status !== 'DIBATALKAN')
         .reduce((sum, o) => sum + (o.total || 0), 0);
     
-    const allPayments = STATE.orders
-        .filter(o => (o.paidAmount && o.paidAmount > 0) || o.status === 'LUNAS' || o.status === 'APPROVED')
-        .map(o => ({
-            branch: o.branch,
-            date: o.paymentDate || o.date,
-            amount: o.paidAmount !== undefined 
-                ? parseFloat(o.paidAmount) 
-                : ((o.status === 'LUNAS' || o.status === 'APPROVED') ? parseFloat(o.total) : 0)
-        }));
+    // Hitung pembayaran berdasarkan Kas Umum (Log Transaksi Riil)
+    const orderPayments = (STATE.kas_umum || []).filter(k => 
+        (k.desc || '').includes('Pembayaran Pesanan')
+    );
 
-    const prevPayments = allPayments
+    const prevPayments = orderPayments
         .filter(p => isBranchMatch(p.branch) && p.date < selectedDate)
-        .reduce((sum, p) => sum + p.amount, 0);
+        .reduce((sum, p) => sum + (parseFloat(p.masuk) || 0), 0);
     
     const sisaTagihanLalu = prevSales - prevPayments;
-    const pembayaranHariIni = allPayments
+    
+    const pembayaranHariIni = orderPayments
         .filter(p => isBranchMatch(p.branch) && p.date === selectedDate)
-        .reduce((sum, p) => sum + p.amount, 0);
+        .reduce((sum, p) => sum + (parseFloat(p.masuk) || 0), 0);
 
     const totalTagihan = sisaTagihanLalu + totalJualKios;
     const sisaTagihanHariIni = totalTagihan - pembayaranHariIni;

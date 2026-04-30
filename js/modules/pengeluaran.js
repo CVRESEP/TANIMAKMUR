@@ -344,6 +344,9 @@ function openDirectPenyaluranModal(id) {
     const kiosks = getFilteredData('users').filter(u => u.role === 'KIOS');
     const drivers = STATE.drivers;
 
+    const product = STATE.products.find(p => p.name === entry.product);
+    const price = product ? (product.sellPrice || product.price) : 0;
+
     const content = `
         <form onsubmit="saveDirectPenyaluran(event, '${id}')">
             <div style="margin-bottom: 20px; padding: 15px; background: #f0fdf4; border-radius: 8px; border: 1px solid #dcfce7;">
@@ -368,17 +371,76 @@ function openDirectPenyaluranModal(id) {
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>Jumlah Penyaluran (Ton)</label>
-                <input type="number" name="qty" value="${sisa}" step="0.1" max="${sisa}" required>
+            <div class="form-group" style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc;">
+                <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px;">Tanggal Penyaluran</label>
+                <input type="date" name="date" value="${new Date().toISOString().split('T')[0]}" required>
             </div>
 
-            <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; height: 48px; font-weight: 700;">
+            <div class="form-group">
+                <label>Jumlah Penyaluran (Ton)</label>
+                <input type="number" name="qty" id="salur_qty" value="${sisa}" step="0.1" max="${sisa}" required 
+                       oninput="const price = ${price}; const total = (parseFloat(this.value) || 0) * price; document.getElementById('salur_total_label').textContent = formatCurrency(total); document.getElementById('salur_total_input').value = total;">
+            </div>
+
+            <div style="margin-top: 20px; padding: 15px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="font-size: 0.8rem; color: #166534; font-weight: 700; text-transform: uppercase;">Pembayaran Langsung</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button type="button" onclick="const total = document.getElementById('salur_total_input').value; const inp = document.querySelector('input[name=\\'payment_amount\\']'); inp.value = formatNumberInput(total); inp.readOnly=false; document.querySelectorAll('input[name=\\'use_deposit\\']').forEach(c => c.checked = false);" 
+                                style="padding: 4px 10px; background: #15803d; color: white; border: none; border-radius: 4px; font-size: 0.7rem; font-weight: 800; cursor: pointer; text-transform: uppercase;">LUNAS</button>
+                        <div id="salur_total_label" style="font-size: 0.9rem; font-weight: 800; color: #15803d;">${formatCurrency(sisa * price)}</div>
+                    </div>
+                    <input type="hidden" id="salur_total_input" value="${sisa * price}">
+                </div>
+
+                <div id="deposit_info_container">
+                    <!-- Dinamis terisi saat kios dipilih -->
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="color: #166534;">Nominal Bayar Sekarang</label>
+                    <input type="text" name="payment_amount" oninput="this.value = formatNumberInput(this.value)" placeholder="Kosongkan jika belum bayar..." style="border-color: #86efac; font-weight: 700;">
+                </div>
+            </div>
+
+            <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; height: 48px; font-weight: 700; margin-top: 20px;">
                 <i data-lucide="send"></i> KONFIRMASI & SALURKAN SEKARANG
             </button>
         </form>
     `;
     openModal('Penyaluran Langsung ke Kios', content);
+
+    // Inisialisasi logika setelah modal terbuka
+    setTimeout(() => {
+        const $select = $('select[name="target_kiosk"]');
+        initSearchableSelect('select[name="target_kiosk"]');
+        initSearchableSelect('select[name="driver"]');
+
+        const depositContainer = document.getElementById('deposit_info_container');
+        
+        $select.on('change', function() {
+            const kioskName = this.value.split('|')[0];
+            const deposits = STATE.settings?.deposits || {};
+            const deposit = deposits[kioskName] || 0;
+            
+            if (deposit > 0) {
+                depositContainer.innerHTML = `
+                    <div style="margin-bottom: 12px; padding: 8px; background: white; border-radius: 6px; border: 1px solid #dcfce7; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 0.65rem; color: #166534;">SALDO TITIPAN KIOS</div>
+                            <div style="font-size: 0.85rem; font-weight: 800; color: #15803d;">${formatCurrency(deposit)}</div>
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; color: #166534; font-size: 0.7rem;">
+                            <input type="checkbox" name="use_deposit" value="1" onchange="const total = parseFloat(document.getElementById('salur_total_input').value) || 0; if(this.checked) { document.querySelector('input[name=\\'payment_amount\\']').value = formatNumberInput(Math.min(${deposit}, total).toString()); document.querySelector('input[name=\\'payment_amount\\']').readOnly=true; } else { document.querySelector('input[name=\\'payment_amount\\']').value=''; document.querySelector('input[name=\\'payment_amount\\']').readOnly=false; }">
+                            Pakai Saldo
+                        </label>
+                    </div>
+                `;
+            } else {
+                depositContainer.innerHTML = '';
+            }
+        });
+    }, 100);
 }
 
 function saveDirectPenyaluran(e, outId) {
@@ -390,6 +452,7 @@ function saveDirectPenyaluran(e, outId) {
     const kioskData = fd.get('target_kiosk').split('|');
     const driverData = fd.get('driver').split('|');
     const qty = parseFloat(fd.get('qty'));
+    const date = fd.get('date');
     
     const kioskName = kioskData[0];
     const branch = kioskData[1];
@@ -403,14 +466,14 @@ function saveDirectPenyaluran(e, outId) {
     
     const newOrder = {
         id: orderId,
-        date: new Date().toISOString().split('T')[0],
+        date: date,
         product: entry.product,
         qty: qty,
         price: price,
         total: qty * price,
         branch: branch,
         kiosk: kioskName,
-        status: 'MENUNGGU PEMBAYARAN', // Change from LUNAS to MENUNGGU PEMBAYARAN
+        status: 'MENUNGGU PEMBAYARAN', 
         pylId: pylId
     };
 
@@ -422,13 +485,28 @@ function saveDirectPenyaluran(e, outId) {
         product: entry.product,
         qty: qty,
         branch: branch,
-        date: new Date().toISOString().split('T')[0],
-        status: 'DALAM PENGIRIMAN',
+        date: date,
+        status: 'SELESAI',
         driver: driverData[0],
         plat: driverData[1],
         pengeluaran_id: outId,
         do: entry.do
     };
+
+    // 3. Process Immediate Payment
+    const paymentVal = fd.get('payment_amount')?.replace(/\./g, '') || '0';
+    const amount = parseFloat(paymentVal);
+    const useDeposit = fd.get('use_deposit') === '1';
+
+    if (amount > 0) {
+        if (useDeposit) {
+            let currentDeposit = STATE.settings.deposits[kioskName] || 0;
+            STATE.settings.deposits[kioskName] = currentDeposit - amount;
+            saveRecord('settings', STATE.settings);
+        } 
+        newOrder.paidAmount = amount;
+        newOrder.status = amount >= newOrder.total ? 'LUNAS' : 'MENUNGGU PEMBAYARAN';
+    }
 
     STATE.orders.unshift(newOrder);
     STATE.penyaluran.unshift(newPyl);
@@ -446,5 +524,5 @@ function saveDirectPenyaluran(e, outId) {
     if (typeof renderDashboard === 'function') renderDashboard();
     if (typeof renderPenyaluran === 'function') renderPenyaluran();
     
-    openSuccessModal('PENYALURAN BERHASIL', `Barang berhasil disalurkan ke <strong>${kioskName}</strong>.<br>Nomor Surat Jalan: <strong>${pylId}</strong><br><br>Biaya angkutan otomatis telah dicatat di Kas Angkutan.`);
+    openSuccessModal('PENYALURAN BERHASIL', `Barang berhasil disalurkan ke <strong>${kioskName}</strong>.<br>Nomor Surat Jalan: <strong>${pylId}</strong><br><br>${amount > 0 ? `Pembayaran sebesar <strong>${formatCurrency(amount)}</strong> telah dicatat.<br>` : ''}Biaya angkutan otomatis telah dicatat di Kas Angkutan.`);
 }

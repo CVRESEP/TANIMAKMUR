@@ -369,7 +369,7 @@ function renderRowLimitSelector(type) {
 
                 <!-- Tengah: Tombol Filter Bulan -->
                 <div style="display: flex; justify-content: center; position: relative;">
-                    <button onclick="toggleMonthTree(event)" class="action-btn" style="background: #fff; border: 1px solid var(--primary); border-radius: 10px; height: 38px; padding: 0 15px; font-weight: 700; font-size: 0.75rem; color: var(--primary); display: flex; align-items: center; gap: 8px; position: relative; z-index: 10001;">
+                    <button onclick="toggleMonthTree(event)" class="action-btn" style="background: #fff; border: 1px solid var(--primary); border-radius: 10px; height: 38px; padding: 0 15px; font-weight: 700; font-size: 0.75rem; color: var(--primary); display: flex; align-items: center; gap: 8px; position: relative; z-index: 501;">
                         <i data-lucide="calendar" style="width: 18px; height: 18px;"></i> 
                         Pilih Bulan
                         <i data-lucide="chevron-down" style="width: 14px;"></i>
@@ -377,7 +377,7 @@ function renderRowLimitSelector(type) {
 
                     <!-- Menu Dropdown Pohon Bulan Kompak (Sekarang tertambat ke tombol) -->
                     <div id="month-tree-dropdown" class="month-tree-menu ${STATE.uiMonthFilterExpanded ? 'show' : ''}" 
-                         style="display: ${STATE.uiMonthFilterExpanded ? 'block' : 'none'}; position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); width: 240px; padding: 12px; border-radius: 10px; background: #fff; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); z-index: 10000; border: 1px solid #e2e8f0; text-align: left;">
+                         style="display: ${STATE.uiMonthFilterExpanded ? 'block' : 'none'}; position: absolute; top: calc(100% + 5px); left: 50%; transform: translateX(-50%); width: 240px; padding: 12px; border-radius: 10px; background: #fff; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); z-index: 500; border: 1px solid #e2e8f0; text-align: left;">
                         <div style="margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px;">
                             <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; color: var(--primary);">
                         <input type="checkbox" id="all-months-checkbox" ${STATE.globalDateFilter.selectedMonths.length === 24 ? 'checked' : ''} onchange="handleAllMonthsCheckbox(this.checked)" style="width: 14px; height: 14px;">
@@ -450,6 +450,7 @@ function renderRowLimitSelector(type) {
                                    onchange="handleDateFilter('end', this.value)">
                         </div>
                     </div>
+
                     <button class="action-btn" onclick="resetFilters()" style="background: #fff; border: 1px solid #e2e8f0; color: #64748b; border-radius: 12px; height: 42px; padding: 0 15px; font-weight: 700; font-size: 0.75rem; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s;">
                         <i data-lucide="refresh-cw" style="width: 14px;"></i> RESET
                     </button>
@@ -651,7 +652,7 @@ function updateRowLimit(type, value) {
 
 window.updateAvailableMonths = function() {
     const months = new Set();
-    const dataKeys = ['penebusan', 'pengeluaran', 'penyaluran', 'kas_angkutan', 'kas_umum'];
+    const dataKeys = ['penebusan', 'pengeluaran', 'penyaluran', 'kas_angkutan', 'kas_umum', 'orders'];
     
     dataKeys.forEach(key => {
         const data = STATE[key] || [];

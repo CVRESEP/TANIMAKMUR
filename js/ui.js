@@ -374,3 +374,17 @@ function toggleDropdown(event) {
         dropdown.classList.toggle('show');
     }
 }
+
+function initSearchableSelect(selector, options = {}) {
+    if (typeof jQuery === 'undefined' || typeof jQuery.fn.select2 === 'undefined') return;
+    
+    const defaults = {
+        width: '100%',
+        dropdownParent: $('#modal-container'), // Penting agar bisa diketik di dalam modal
+        language: {
+            noResults: () => "Data tidak ditemukan"
+        }
+    };
+    
+    $(selector).select2({...defaults, ...options});
+}

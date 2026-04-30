@@ -340,7 +340,7 @@ function saveApprovalDirectDispatch(e, orderId) {
             qty: order.qty,
             branch: order.branch,
             date: new Date().toISOString().split('T')[0],
-            status: 'DALAM PENGIRIMAN',
+            status: 'SELESAI',
             driver: driverData[0],
             plat: driverData[1],
             pengeluaran_id: outId,
@@ -355,6 +355,7 @@ function saveApprovalDirectDispatch(e, orderId) {
 
         saveRecord('orders', order);
         saveRecord('penyaluran', newPyl);
+        
         closeModal();
         renderApprovals();
         if (typeof renderPenyaluran === 'function') renderPenyaluran();
@@ -402,6 +403,11 @@ function openPaymentDialog(id) {
                     </label>
                 </div>
             ` : ''}
+
+            <div class="form-group" style="padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: #f8fafc; margin-bottom: 15px;">
+                <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 4px;">Tanggal Pembayaran</label>
+                <input type="date" id="payment-date" value="${new Date().toISOString().split('T')[0]}" required>
+            </div>
 
             <div class="form-group">
                 <label>Nominal Pembayaran Sekarang</label>
@@ -454,23 +460,10 @@ function processPayment(e, id) {
         let currentDeposit = STATE.settings.deposits[order.kiosk] || 0;
         if (amount > currentDeposit) return alert('Saldo Titipan tidak cukup!');
         
-        // Kurangi saldo titipan
+        // Jika pakai titipan, kurangi saldo titipan
         STATE.settings.deposits[order.kiosk] = currentDeposit - amount;
-        
-        // Jika pakai titipan, catat pengurangan (kas keluar) dari Kas Umum,
-        // karena uang titipan sebelumnya dicatat sebagai uang fisik di Kas Umum.
-        // Sekarang uang itu "dipakai" untuk bayar DO, jadi kas umum secara administratif 
-        // harus disesuaikan jika ingin detail. Tapi tunggu!
-        // Uang Titipan sudah ada di Kas Umum (Tunai). Uang DO juga seharusnya masuk Kas Umum.
-        // Karena Kios pakai Uang Titipan untuk bayar DO, maka secara kas fisik TIDAK ADA PERGERAKAN UANG.
-        // Uang DO = Uang Titipan.
-        // Oleh karena itu, kita tidak perlu memodifikasi Kas Umum lagi. 
-        // Pembayaran DO terekam di Orders, dan Hutang Titipan kita ke Kios berkurang.
-    } else {
-        // Jika bayar fresh cash (TIDAK PAKAI TITIPAN)
-        // Kalau sistem mencatat DO ke Kas Umum, maka tambahkan ke sini.
-        // (Berdasarkan audit, DO di Tani Makmur tidak otomatis masuk Kas Umum, hanya terekap di Laporan)
-    }
+    } 
+    // Catatan: Sesuai permintaan, pembayaran pesanan tidak masuk ke Kas Umum (hanya untuk kantor)
 
     const total = parseFloat(order.total) || 0;
     let paid = parseFloat(order.paidAmount) || 0;
@@ -480,9 +473,17 @@ function processPayment(e, id) {
 
     order.paidAmount = paid;
     
+    const dateInput = document.getElementById('payment-date');
+    order.paymentDate = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
+    
     if (paid >= total) {
         order.status = 'LUNAS';
-        order.paymentDate = new Date().toISOString().split('T')[0];
+        // Sesuai permintaan: apabila lunas, status penyaluran langsung dinyatakan SELESAI
+        const linkedPyl = STATE.penyaluran.find(p => p.orderId === order.id);
+        if (linkedPyl) {
+            linkedPyl.status = 'SELESAI';
+            saveRecord('penyaluran', linkedPyl);
+        }
     } else {
         order.status = 'MENUNGGU PEMBAYARAN'; // Kembali ke status ini jika baru cicil
     }
@@ -529,6 +530,7 @@ function confirmOrder(id, nextStatus) {
                 <div style="margin-bottom: 20px; padding: 15px; background: #fff7ed; border-radius: 8px; border: 1px solid #ffedd5;">
                     <div style="font-size: 0.8rem; color: #9a3412; font-weight: 600;">ALOKASI PENGIRIMAN</div>
                     <div style="font-size: 1.1rem; font-weight: 800; color: #c2410c;">${order.product} - ${order.qty} TON</div>
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #1e40af; margin-top: 8px;">TOTAL TAGIHAN: ${formatCurrency(order.total)}</div>
                 </div>
                 
                 <div class="form-group">
@@ -536,12 +538,12 @@ function confirmOrder(id, nextStatus) {
                     <select name="pengeluaran_id" required>
                         <option value="" disabled selected>Pilih DO...</option>
                         ${availableDOs.map(doEntry => {
-            const totalShared = round2(STATE.penyaluran
-                .filter(item => item.pengeluaran_id === doEntry.id)
-                .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
-            const remaining = round2((parseFloat(doEntry.keluar) || 0) - totalShared);
-            return `<option value="${doEntry.id}">${doEntry.do} - Sisa: ${remaining.toFixed(1)} Ton</option>`;
-        }).join('')}
+                            const totalShared = round2(STATE.penyaluran
+                                .filter(item => item.pengeluaran_id === doEntry.id)
+                                .reduce((sum, item) => round2(sum + (parseFloat(item.qty) || 0)), 0));
+                            const remaining = round2((parseFloat(doEntry.keluar) || 0) - totalShared);
+                            return `<option value="${doEntry.id}">${doEntry.do} - Sisa: ${remaining.toFixed(1)} Ton</option>`;
+                        }).join('')}
                     </select>
                 </div>
 
@@ -553,7 +555,7 @@ function confirmOrder(id, nextStatus) {
                     </select>
                 </div>
 
-                <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; height: 48px;">SETUJUI & KIRIM BARANG</button>
+                <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; height: 48px; margin-top: 20px;">SETUJUI & KIRIM BARANG</button>
             </form>
         `;
         openModal('Persetujuan & Pengiriman', content);
@@ -563,20 +565,20 @@ function confirmOrder(id, nextStatus) {
 
 function deleteOrder(id) {
     if (confirm('Hapus pesanan ' + id + '? Data pengiriman & biaya angkutan terkait juga akan dihapus.')) {
-        // Kumpulkan ID distribusi tertaut
-        const linkedPylIds = STATE.penyaluran.filter(p => p.orderId === id).map(p => p.id);
+        // Identify affected records
+        const affectedPyl = STATE.penyaluran.filter(p => p.orderId === id);
+        const linkedPylIds = affectedPyl.map(p => p.id);
+        const affectedKas = STATE.kas_angkutan.filter(k => linkedPylIds.includes(k.noPyl));
 
+        // Remove from local state (Optimistic UI)
         STATE.orders = STATE.orders.filter(o => o.id !== id);
-        STATE.penyaluran = STATE.penyaluran.filter(p => p.orderId !== id);
+        STATE.penyaluran = STATE.penyaluran.filter(p => !affectedPyl.includes(p));
+        STATE.kas_angkutan = STATE.kas_angkutan.filter(k => !affectedKas.includes(k));
 
-        // Bersihkan Kas Angkutan tertaut
-        STATE.kas_angkutan = STATE.kas_angkutan.filter(k => !linkedPylIds.includes(k.noPyl));
-
-        // Karena menghapus banyak record, kita gunakan deleteRecord
+        // Delete from database
         deleteRecord('orders', id);
-        linkedPylIds.forEach(pylId => deleteRecord('penyaluran', pylId));
-
-        saveState(true); // Fallback to full sync if needed
+        affectedPyl.forEach(p => deleteRecord('penyaluran', p.id));
+        affectedKas.forEach(k => deleteRecord('kas_angkutan', k.id));
 
         // Muat ulang tampilan yang sesuai berdasarkan peran
         if (STATE.currentUser.role === 'KIOS') {

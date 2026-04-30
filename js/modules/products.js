@@ -283,7 +283,7 @@ async function updateProduct(e, oldCode) {
             });
         }
 
-        saveState();
+        saveRecord('products', p);
         closeModal();
         renderProducts();
         openSuccessModal('PRODUK DIPERBARUI', `Data produk <strong>${p.name}</strong> berhasil diperbarui.`);

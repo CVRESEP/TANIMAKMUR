@@ -27,9 +27,13 @@ function renderPenyaluran() {
     tbody.innerHTML = data.map(p => {
         // Find linked order for payment status and total
         const order = STATE.orders.find(o => o.id === p.orderId);
-        const paymentLabel = order && order.status === 'LUNAS' ? '<span class="badge lunas">LUNAS</span>' : '<span class="badge waiting">BELUM LUNAS</span>';
-        const isUnpaid = !order || order.status !== 'LUNAS';
-        const nominalColor = isUnpaid ? 'color: #ef4444; font-weight: 700;' : '';
+        
+        const total = order ? (parseFloat(order.total) || 0) : 0;
+        const paid = order ? (parseFloat(order.paidAmount) || (order.status === 'LUNAS' ? total : 0)) : 0;
+        const remaining = round2(total - paid);
+
+        const isUnpaid = remaining > 0;
+        const nominalColor = isUnpaid ? 'color: #ef4444; font-weight: 700;' : 'color: #10b981; font-weight: 700;';
 
         return `
             <tr>
@@ -39,21 +43,26 @@ function renderPenyaluran() {
                 <td><strong>${p.kios}</strong></td>
                 <td>${p.product}</td>
                 <td>${p.qty} Ton</td>
-                <td style="${nominalColor}">${order ? formatCurrency(order.total) : '-'}</td>
+                <td style="${nominalColor}">${order ? formatCurrency(total) : '-'}</td>
+                <td style="color: #10b981; font-weight: 700;">${order ? formatCurrency(paid) : '-'}</td>
+                <td style="color: ${remaining > 0 ? '#ef4444' : '#64748b'}; font-weight: 700;">${order ? (remaining > 0 ? formatCurrency(remaining) : '-') : '-'}</td>
                 <td>${p.driver || '-'}</td>
                 <td>${p.plat || '-'}</td>
-                <td><span class="badge ${p.status.toLowerCase().replace(/ /g, '-')}">${p.status}</span></td>
-                <td>${paymentLabel}</td>
+                <td>
+                    <span class="badge ${order ? order.status.toLowerCase().replace(/ /g, '-') : p.status.toLowerCase().replace(/ /g, '-')}">
+                        ${order ? order.status : p.status}
+                    </span>
+                </td>
                 <td>
                     <div style="display: flex; gap: 5px;">
-                        ${isUnpaid && order ? `
-                             <button class="action-btn small success" onclick="confirmOrder('${order.id}', 'APPROVED')" title="Bayar Melalui Admin" style="background:#108040; color:white; border:none;">
-                                <i data-lucide="banknote"></i> BAYAR
-                            </button>
-                        ` : ''}
                         ${p.status === 'MENUNGGU PROSES' ? `
                             <button class="action-btn small success" onclick="openProsesPenyaluranModal('${p.id}')" title="Proses Penjadwalan" style="background:var(--primary); color:white; border:none;">
                                 <i data-lucide="settings"></i> PROSES
+                            </button>
+                        ` : ''}
+                        ${order && order.status !== 'LUNAS' ? `
+                            <button class="action-btn small success" onclick="openPaymentDialog('${order.id}')" title="Input Pembayaran" style="background:#10b981; color:white; border:none;">
+                                <i data-lucide="dollar-sign"></i> BAYAR
                             </button>
                         ` : ''}
                         ${p.status === 'MENUNGGU PENGIRIMAN' ? `
@@ -137,8 +146,8 @@ function openProsesPenyaluranModal(pylId) {
                     }).join('')}
                 </select>
             </div>
-            
-            <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; height: 48px; font-weight: 700;">KONFIRMASI PENJADWALAN</button>
+
+            <button type="submit" class="action-btn primary" style="width: 100%; justify-content: center; height: 48px; font-weight: 700; margin-top: 20px;">KONFIRMASI PENJADWALAN</button>
         </form>
     `;
     
@@ -169,10 +178,10 @@ function saveProsesPenyaluran(e, pylId) {
             autoCreateKasAngkutan(pylId);
         }
 
-        saveState();
+        saveRecord('penyaluran', pyl);
         closeModal();
         renderPenyaluran();
-        openSuccessModal('PENJADWALAN BERHASIL', `Pesanan telah dijadwalkan dengan Sopir <strong>${pyl.driver}</strong> menggunakan stok DO <strong>${entry.do}</strong>.<br><br>Biaya angkutan otomatis telah dicatat di Kas Angkutan.`);
+        openSuccessModal('PENJADWALAN BERHASIL', `Pesanan telah dijadwalkan dengan Sopir <strong>${pyl.driver}</strong> menggunakan stok DO <strong>${entry.do}</strong>.<br><br>${amount > 0 ? `Pembayaran sebesar <strong>${formatCurrency(amount)}</strong> telah dicatat.<br>` : ''}Biaya angkutan otomatis telah dicatat di Kas Angkutan.`);
     }
 }
 
@@ -185,7 +194,7 @@ function confirmDispatch(e, pylId) {
     if (pyl) {
         pyl.driver = driverData[0];
         pyl.plat = driverData[1];
-        pyl.status = 'DALAM PENGIRIMAN';
+        pyl.status = 'SELESAI';
         saveRecord('penyaluran', pyl);
         closeModal();
         renderPenyaluran();
@@ -203,22 +212,26 @@ function deletePenyaluran(id) {
     const targetPyl = STATE.penyaluran.find(p => String(p.id).trim().toUpperCase() === targetId);
     const initialCount = STATE.penyaluran.length;
     
-    // Remove from memory
-    STATE.penyaluran = STATE.penyaluran.filter(p => String(p.id).trim().toUpperCase() !== targetId);
-    
-    // Clean up associated orders
-    STATE.orders = STATE.orders.filter(o => 
+    // Identify affected records before removing them from local state
+    const affectedOrders = STATE.orders.filter(o => 
         (o.pylId && String(o.pylId).trim().toUpperCase() === targetId) || 
         (String(o.id).trim().toUpperCase() === targetId) ||
         (targetPyl && targetPyl.orderId && o.id === targetPyl.orderId)
     );
-
-    // Clean up linked Kas Angkutan entries
-    STATE.kas_angkutan = STATE.kas_angkutan.filter(k => 
-        String(k.noPyl).trim().toUpperCase() !== targetId
+    
+    const affectedKas = STATE.kas_angkutan.filter(k => 
+        String(k.noPyl).trim().toUpperCase() === targetId
     );
 
-    saveState(true);
+    // Remove from local state
+    STATE.orders = STATE.orders.filter(o => !affectedOrders.includes(o));
+    STATE.kas_angkutan = STATE.kas_angkutan.filter(k => !affectedKas.includes(k));
+    STATE.penyaluran = STATE.penyaluran.filter(p => String(p.id).trim().toUpperCase() !== targetId);
+    
+    // Delete from database
+    affectedOrders.forEach(o => deleteRecord('orders', o.id));
+    affectedKas.forEach(k => deleteRecord('kas_angkutan', k.id));
+    deleteRecord('penyaluran', targetId);
     renderPenyaluran();
     
     // Refresh finance view if visible
@@ -264,7 +277,6 @@ function openEditPenyaluranModal(pylId) {
                     <select name="status">
                         <option value="MENUNGGU PROSES" ${p.status === 'MENUNGGU PROSES' ? 'selected' : ''}>MENUNGGU PROSES</option>
                         <option value="MENUNGGU PENGIRIMAN" ${p.status === 'MENUNGGU PENGIRIMAN' ? 'selected' : ''}>MENUNGGU PENGIRIMAN</option>
-                        <option value="DALAM PENGIRIMAN" ${p.status === 'DALAM PENGIRIMAN' ? 'selected' : ''}>DALAM PENGIRIMAN</option>
                         <option value="SELESAI" ${p.status === 'SELESAI' ? 'selected' : ''}>SELESAI</option>
                     </select>
                 </div>
@@ -427,4 +439,42 @@ function printSuratJalan(id) {
         </html>
     `);
     printWindow.document.close();
+}
+
+function openAddPenyaluranManual() {
+    const availableDOs = STATE.pengeluaran.filter(p => {
+        // Logika sisa harus sama dengan di pengeluaran.js
+        const totalPenyaluranThisEntry = STATE.penyaluran
+            .filter(pyl => pyl.pengeluaran_id === p.id)
+            .reduce((sum, pyl) => round2(sum + (parseFloat(pyl.qty) || 0)), 0);
+        const sisa = round2((parseFloat(p.keluar) || 0) - totalPenyaluranThisEntry);
+        return sisa > 0;
+    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (availableDOs.length === 0) {
+        return alert('Tidak ada stok DO yang tersedia untuk disalurkan. Silakan tambah data di modul Pengeluaran terlebih dahulu.');
+    }
+
+    const content = `
+        <div class="form-group">
+            <label>Pilih Sumber Stok (DO)</label>
+            <select id="manual-salur-do" onchange="window.selectedSalurDo = this.value; document.getElementById('manual-salur-btn').disabled = !this.value;" style="height: 50px; font-weight: 600;">
+                <option value="" disabled selected>Pilih DO yang tersedia...</option>
+                ${availableDOs.map(p => {
+                    const totalPenyaluranThisEntry = STATE.penyaluran
+                        .filter(pyl => pyl.pengeluaran_id === p.id)
+                        .reduce((sum, pyl) => round2(sum + (parseFloat(pyl.qty) || 0)), 0);
+                    const sisa = round2((parseFloat(p.keluar) || 0) - totalPenyaluranThisEntry);
+                    return `<option value="${p.id}">${p.do} - ${p.product} (Sisa: ${sisa} Ton)</option>`;
+                }).join('')}
+            </select>
+        </div>
+        <div style="margin-top: 20px;">
+            <button id="manual-salur-btn" class="action-btn primary" style="width: 100%; justify-content: center; height: 50px; font-weight: 700;" disabled onclick="openDirectPenyaluranModal(window.selectedSalurDo)">
+                LANJUTKAN PENYALURAN
+            </button>
+        </div>
+    `;
+    openModal('Tambah Penyaluran Manual', content);
+    initSearchableSelect('#manual-salur-do');
 }

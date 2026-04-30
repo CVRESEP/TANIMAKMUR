@@ -221,11 +221,9 @@ async function deleteRecord(table, id, idField = 'id') {
     if (!STATE[table]) return;
 
     // 1. Update local state
-    const originalLength = STATE[table].length;
     STATE[table] = STATE[table].filter(item =>
         (item.id || item.do || item.username || item.code) !== id
     );
-    if (STATE[table].length === originalLength) return; // Tidak ada yang dihapus
 
     // 2. Update UI
     if (typeof updateSidebarBadges === 'function') updateSidebarBadges();

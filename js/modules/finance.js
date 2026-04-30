@@ -645,14 +645,15 @@ function autoCreateKasAngkutan(pylId) {
         palang: 0,
         lembur: 0,
         helper: 0,
-        lainLain: 0
+        lainLain: 0,
+        status: 'DISETUJUI'
     };
 
     // Cegah entri otomatis duplikat untuk distribusi yang sama
     const exists = STATE.kas_angkutan.some(k => k.noPyl === pylId && k.desc.includes('(AUTO)'));
     if (!exists) {
         STATE.kas_angkutan.unshift(newEntry);
-        saveState(true); // Sinkronkan SEGERA untuk mencegah kehilangan saat pengalihan
+        saveRecord('kas_angkutan', newEntry);
     }
 }
 
@@ -751,7 +752,7 @@ function saveFinanceTransaction(e, type) {
     }
 
     STATE[type].unshift(newEntry);
-    saveState();
+    saveRecord(type, newEntry);
     closeModal();
     
     if (type === 'kas_angkutan') renderKasAngkutan();
@@ -835,8 +836,7 @@ function viewFinanceDetail(id) {
 
 function deleteFinanceTransaction(type, id) {
     if (confirm('Hapus transaksi ini?')) {
-        STATE[type] = STATE[type].filter(item => item.id !== id);
-        saveState();
+        deleteRecord(type, id);
         if (type === 'kas_angkutan') renderKasAngkutan();
         else renderKasUmum();
         openSuccessModal('BERHASIL', 'Transaksi telah dihapus.');

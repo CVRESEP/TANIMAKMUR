@@ -6,6 +6,9 @@
     <title>Tani Makmur - Dashboard</title>
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </head>
@@ -247,20 +250,27 @@
     </template>
 
     <template id="tpl-payments">
-        <h2 class="page-title">Riwayat Pembayaran Kios</h2>
+        <div class="header-actions">
+            <h2 class="page-title">Riwayat Pembayaran Kios</h2>
+            <button class="action-btn primary" onclick="openAddPaymentModal()">
+                <i data-lucide="plus"></i> TAMBAH PEMBAYARAN
+            </button>
+        </div>
         <div class="card p-0 overflow-hidden">
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th onclick="handleSort('id')">ID </th>
-                            <th onclick="handleSort('date')">TANGGAL </th>
-                            <th onclick="handleSort('pylId')">ID PYL </th>
-                            <th onclick="handleSort('kiosk')">KIOS </th>
-                            <th onclick="handleSort('product')">PRODUK </th>
-                            <th onclick="handleSort('qty')">QTY </th>
-                            <th onclick="handleSort('total')">TOTAL BAYAR </th>
+                            <th onclick="handleSort('id')">ID PESANAN</th>
+                            <th onclick="handleSort('date')">TANGGAL</th>
+                            <th onclick="handleSort('pylId')">ID PYL</th>
+                            <th onclick="handleSort('kiosk')">KIOS</th>
+                            <th onclick="handleSort('product')">PRODUK</th>
+                            <th onclick="handleSort('total')">TOTAL TAGIHAN</th>
+                            <th style="color: #10b981;">DIBAYAR</th>
+                            <th style="color: #ef4444;">SISA</th>
                             <th>STATUS</th>
+                            <th>AKSI</th>
                         </tr>
                     </thead>
                     <tbody id="payments-table-body"></tbody>
@@ -428,6 +438,9 @@
         <div class="header-actions">
             <h2 class="page-title">Monitoring Penyaluran Kios</h2>
             <div style="display: flex; gap: 10px;">
+                <button class="action-btn primary" onclick="openAddPenyaluranManual()">
+                    <i data-lucide="plus"></i> TAMBAH PENYALURAN
+                </button>
                 <button class="action-btn secondary" onclick="triggerImport('penyaluran')">
                     <i data-lucide="upload"></i> IMPORT
                 </button>
@@ -446,10 +459,11 @@
                         <th onclick="handleSort('product')">PRODUK </th>
                         <th onclick="handleSort('qty')">QTY (TON) </th>
                         <th onclick="handleSort('total')">NOMINAL </th>
+                        <th onclick="handleSort('paidAmount')">TERBAYAR </th>
+                        <th onclick="handleSort('remaining')">SISA </th>
                         <th onclick="handleSort('driver')">SOPIR </th>
                         <th onclick="handleSort('plat')">PLAT </th>
                         <th onclick="handleSort('status')">STATUS </th>
-                        <th>PEMBAYARAN</th>
                         <th>AKSI</th>
                     </tr>
                 </thead>

@@ -154,8 +154,7 @@ function saveKiosk(e) {
         phone: fd.get('phone')
     };
 
-    STATE.users.push(newKiosk);
-    saveState();
+    saveRecord('users', newKiosk);
     closeModal();
     renderKiosks();
     openSuccessModal('KIOS DITAMBAHKAN', `Kios <strong>${name}</strong> telah berhasil didaftarkan ke sistem.`);
@@ -219,7 +218,7 @@ function updateKiosk(e, username) {
             });
         }
         
-        saveState();
+        saveRecord('users', k);
         closeModal();
         renderKiosks();
         openSuccessModal('BERHASIL', `Data kios ${k.name} berhasil diperbarui.`);
@@ -235,8 +234,7 @@ function deleteKiosk(username) {
     }
 
     if (confirm('Hapus data kios ' + username + '? Seluruh akun login terkait juga akan dihapus.')) {
-        STATE.users = STATE.users.filter(u => u.username !== username);
-        saveState();
+        deleteRecord('users', username, 'username');
         renderKiosks();
         openSuccessModal('KIOS DIHAPUS', 'Data kios telah dihapus dari sistem.');
     }
@@ -309,7 +307,11 @@ function viewKioskOrders(kioskName) {
 
     const totalDebt = kioskOrders
         .filter(o => o.status !== 'LUNAS')
-        .reduce((sum, o) => round2(sum + (parseFloat(o.total) || 0)), 0);
+        .reduce((sum, o) => {
+            const total = parseFloat(o.total) || 0;
+            const paid = parseFloat(o.paidAmount) || 0;
+            return round2(sum + (total - paid));
+        }, 0);
     
     const title = `Riwayat Pesanan - ${kioskName} ${totalDebt > 0 ? `<span style="color:#ef4444; margin-left:15px; font-weight:800; font-size:1.1rem;">| KURANG BAYAR: ${formatCurrency(totalDebt)}</span>` : ''}`;
 
@@ -323,11 +325,18 @@ function viewKioskOrders(kioskName) {
                         <th>PRODUK</th>
                         <th>QTY</th>
                         <th class="text-right">TOTAL</th>
+                        <th class="text-right">TERBAYAR</th>
+                        <th class="text-right">SISA</th>
                         <th style="width: 120px;">STATUS</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${kioskOrders.map(o => `
+                    ${kioskOrders.map(o => {
+                        const total = parseFloat(o.total) || 0;
+                        const paid = parseFloat(o.paidAmount) || (o.status === 'LUNAS' ? total : 0);
+                        const remaining = round2(total - paid);
+                        
+                        return `
                         <tr>
                             <td>${formatDate(o.date)}</td>
                             <td>${(() => {
@@ -336,10 +345,12 @@ function viewKioskOrders(kioskName) {
                             })()}</td>
                             <td>${o.product}</td>
                             <td>${o.qty} Ton</td>
-                            <td class="text-right"><strong>${formatCurrency(o.total)}</strong></td>
+                            <td class="text-right"><strong>${formatCurrency(total)}</strong></td>
+                            <td class="text-right" style="color: #10b981; font-weight: 700;">${formatCurrency(paid)}</td>
+                            <td class="text-right" style="color: ${remaining > 0 ? '#ef4444' : '#64748b'}; font-weight: 700;">${remaining > 0 ? formatCurrency(remaining) : '-'}</td>
                             <td><span class="badge ${o.status.toLowerCase().replace(/ /g, '-')}">${o.status}</span></td>
                         </tr>
-                    `).join('') || '<tr><td colspan="100%" style="text-align:center; padding: 40px; color: var(--text-dim);">Belum ada riwayat pesanan tersedia</td></tr>'}
+                    `}).join('') || '<tr><td colspan="100%" style="text-align:center; padding: 40px; color: var(--text-dim);">Belum ada riwayat pesanan tersedia</td></tr>'}
                 </tbody>
             </table>
         </div>

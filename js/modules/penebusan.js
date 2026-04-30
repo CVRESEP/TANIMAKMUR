@@ -30,7 +30,7 @@ function renderPenebusan() {
             ${isSelectMode ? `<td><input type="checkbox" class="row-checkbox" value="${d.do}"></td>` : ''}
             <td><strong>${d.do}</strong></td>
             <td>${formatDate(d.date)}</td>
-            <td>${d.kabupaten}</td>
+            <td>${d.kabupaten || '-'}</td>
             <td>${d.product}</td>
             <td>${d.qty}</td>
             <td>${formatCurrency(d.total)}</td>
@@ -80,10 +80,7 @@ function openAddPenebusanModal() {
     let products = STATE.products;
     const user = STATE.currentUser;
     
-    // Filter by branch if user is not OWNER/ADMIN (ALL branch)
-    if (user.branch !== 'ALL') {
-        products = products.filter(p => p.branch === user.branch);
-    }
+    const isRestricted = user.branch !== 'ALL';
     const content = `
         <form onsubmit="savePenebusan(event)" id="form-penebusan">
             <div class="form-group">
@@ -96,11 +93,13 @@ function openAddPenebusanModal() {
             </div>
             <div class="form-group">
                 <label>Pilih Wilayah (Kabupaten)</label>
-                <select name="kabupaten" id="penebusan-branch" onchange="updateModalProductList(this.value, 'penebusan-product')" required>
-                    <option value="" disabled selected>Pilih Wilayah...</option>
-                    <option value="MAGETAN">MAGETAN</option>
-                    <option value="SRAGEN">SRAGEN</option>
+                <select name="kabupaten" id="penebusan-branch" onchange="updateModalProductList(this.value, 'penebusan-product')" 
+                    ${isRestricted ? 'style="background: #f1f5f9; pointer-events: none;" tabindex="-1"' : ''} required>
+                    <option value="" disabled ${!isRestricted ? 'selected' : ''}>Pilih Wilayah...</option>
+                    <option value="MAGETAN" ${user.branch === 'MAGETAN' ? 'selected' : ''}>MAGETAN</option>
+                    <option value="SRAGEN" ${user.branch === 'SRAGEN' ? 'selected' : ''}>SRAGEN</option>
                 </select>
+                ${isRestricted ? `<input type="hidden" name="kabupaten" value="${user.branch}">` : ''}
             </div>
             <div class="form-group">
                 <label>Pilih Produk</label>
@@ -122,6 +121,11 @@ function openAddPenebusanModal() {
         </form>
     `;
     openModal('Tambah Penebusan DO Baru', content);
+
+    // Auto-populate products if branch is pre-selected
+    if (isRestricted) {
+        updateModalProductList(user.branch, 'penebusan-product');
+    }
 }
 
 function updateModalProductList(branch, selectId, currentValue = '') {
@@ -259,7 +263,10 @@ function updatePenebusan(e, doRef) {
         STATE.pengeluaran[outIdx].kabupaten = updated.kabupaten;
     }
 
-    saveState();
+    saveRecord('penebusan', updated);
+    if (outIdx !== -1) {
+        saveRecord('pengeluaran', STATE.pengeluaran[outIdx]);
+    }
     closeModal();
     renderPenebusan();
     renderPengeluaran();

@@ -80,8 +80,8 @@ async function reconstruct() {
             const stmts = [];
             // A. Penebusan
             stmts.push({
-                sql: "INSERT OR REPLACE INTO penebusan (\"do\", date, product, qty, harga, total, branch, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                args: [doNo, String(pb['TANGGAL'] || '').trim(), stdProduct, parseFloat(pb['QTY (TON)']) || 0, (parseFloat(pb['TOTAL NILAI'])/parseFloat(pb['QTY (TON)'])) || 0, parseFloat(pb['TOTAL NILAI']) || 0, branch, String(pb['KETERANGAN'] || '').trim()]
+                sql: "INSERT OR REPLACE INTO penebusan (\"do\", date, product, qty, harga, total, branch, kabupaten, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                args: [doNo, String(pb['TANGGAL'] || '').trim(), stdProduct, parseFloat(pb['QTY (TON)']) || 0, (parseFloat(pb['TOTAL NILAI'])/parseFloat(pb['QTY (TON)'])) || 0, parseFloat(pb['TOTAL NILAI']) || 0, branch, branch, String(pb['KETERANGAN'] || '').trim()]
             });
 
             // B. Pengeluaran
